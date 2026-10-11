@@ -1,41 +1,47 @@
 """Lattice windows for the village and island houses, so they can light up
-at night. Drawn in daytime colours (dark frame, cream lattice); the
-generator marks the lattice as a light.
+at night.
+
+By day a window is a soft recess in the wall, built from the house's own
+tones: a shadow under the lintel, a darker frame on the shaded left, a
+lighter one on the right, a pale sill, and a blue-grey lattice inside.
+Only the lattice is a light (alpha 255 in the PNG); the frame (alpha 254)
+stays wall at night.
 
   python3 tools/paint-windows.py   # writes public/reference/windows.png
 """
 from PIL import Image
 
 OUT = 'public/reference/windows.png'
-FRAME = '#3f3132'
-LATTICE = '#d3c6a2'
-BAR = '#9b908c'
+GLASS = '#596d88'   # lattice openings: lit warm at night
+BAR = '#7d7b83'     # lattice bars: lit amber at night
 
-SMALL = ['FFFF',
-         'FLLF',
-         'FFFF']
-LARGE = ['FFFFF',
-         'FLBLF',
-         'FLBLF',
-         'FFFFF']
-SLIT = ['LL']  # far-off windows, two pixels of light
+# Frame tones per wall colour: lintel shadow, shaded side, light side, sill.
+WALLS = {
+    'white': {'S': '#bbb9c8', 'F': '#9b908c', 'G': '#d3c6a2', 'H': '#fcfcfc'},
+    'pink':  {'S': '#9e96bc', 'F': '#9e96bc', 'G': '#f7c9d7', 'H': '#fcfcfc'},
+    'grey':  {'S': '#7d7b83', 'F': '#676667', 'G': '#9e96bc', 'H': '#dfeefa'},
+}
+
+WINDOW = ['.SS.',
+          'FLLG',
+          'FBBG',
+          'FLLG',
+          '.HH.']
+SLIT = ['LL']  # far-off island windows: two pixels of light
 
 WINDOWS = [
-    (SMALL, 161, 173),   # left house, white gable
-    (SMALL, 179, 177),   # left house, pink side wall
-    (SMALL, 243, 205),   # front house, pink gable
-    (SMALL, 253, 205),
-    (SMALL, 313, 235),   # little house by the bridge
-    (LARGE, 436, 264),   # right house, grey gable
-    (SMALL, 445, 270),
-    (SLIT, 408, 143),    # island buildings beside the tower
-    (SLIT, 414, 143),
-    (SLIT, 384, 154),
-    (SLIT, 476, 143),
-    (SLIT, 483, 143),
+    (WINDOW, 'white', 161, 172),  # left house, white gable
+    (WINDOW, 'pink', 244, 204),   # front house, pink gable
+    (WINDOW, 'pink', 253, 204),
+    (WINDOW, 'white', 313, 235),  # little house by the bridge
+    (WINDOW, 'grey', 436, 264),   # right house, grey gable
+    (WINDOW, 'grey', 444, 269),
+    (SLIT, None, 408, 143),       # island buildings beside the tower
+    (SLIT, None, 414, 143),
+    (SLIT, None, 384, 154),
+    (SLIT, None, 476, 143),
+    (SLIT, None, 483, 143),
 ]
-
-COLOURS = {'F': FRAME, 'L': LATTICE, 'B': BAR}
 
 
 def rgb(h):
@@ -43,9 +49,17 @@ def rgb(h):
 
 
 out = Image.new('RGBA', (512, 320), (0, 0, 0, 0))
-for sprite, x0, y0 in WINDOWS:
+for sprite, wall, x0, y0 in WINDOWS:
+    tones = WALLS.get(wall, {})
     for dy, row in enumerate(sprite):
         for dx, ch in enumerate(row):
-            out.putpixel((x0 + dx, y0 + dy), rgb(COLOURS[ch]) + (255,))
+            if ch == '.':
+                continue
+            if ch == 'L':
+                out.putpixel((x0 + dx, y0 + dy), rgb(GLASS) + (255,))
+            elif ch == 'B':
+                out.putpixel((x0 + dx, y0 + dy), rgb(BAR) + (255,))
+            else:
+                out.putpixel((x0 + dx, y0 + dy), rgb(tones[ch]) + (254,))
 out.save(OUT, optimize=True)
 print('wrote', OUT)

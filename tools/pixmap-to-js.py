@@ -155,21 +155,22 @@ for x in range(w):
 for x in range(w):
     for y in range(90, ridge[x]):
         p = y * w + x
-        if region[p] == SKY and hsv[idx[p]][1] < 0.42:
-            region[p] = CLOUD
+        if region[p] == SKY and (hsv[idx[p]][1] < 0.42 or y >= 100):
+            region[p] = CLOUD  # low gaps in the haze are haze, not open sky
 
 # Chaoran Tower and the house windows are drawn separately
 # (tools/paint-tower.py, tools/paint-windows.py) and laid over the map here.
 # Colours they need that the map lacks (the tower's golds) are appended to
 # the palette. Their lattice, railings, eave lips and gold are lights: the
-# renderer lets those glow after dark.
+# renderer lets those glow after dark. Only fully opaque overlay pixels
+# can be lights; window frames and tower roofs are drawn at alpha 254.
 import os
-LIGHTS = {'#d3c6a2', '#9b908c', '#ded3c4', '#7d7b83', '#d9a441', '#a8762c'}
+LIGHTS = {'#d3c6a2', '#9b908c', '#ded3c4', '#7d7b83', '#d9a441', '#a8762c', '#596d88'}
 by_hex = {c: i for i, c in enumerate(colors)}
 tower_px = set()
 
 
-def lay_over(name, on_paint, all_lit=False):
+def lay_over(name, on_paint, all_lit=False, as_region=None):
     path = os.path.join(os.path.dirname(src), name)
     if not os.path.exists(path):
         return
@@ -188,12 +189,13 @@ def lay_over(name, on_paint, all_lit=False):
                 n += 1
             p = y * w + x
             idx[p] = by_hex[c]
-            region[p] = LIGHT if all_lit or c in LIGHTS else LAND
+            region[p] = as_region if as_region is not None else LIGHT if a_ == 255 and (all_lit or c in LIGHTS) else LAND
             on_paint(p)
 
 
-lay_over('chaoran-tower.png', tower_px.add, all_lit=True)  # the whole tower is floodlit
+lay_over('chaoran-tower.png', tower_px.add, all_lit=True)  # floodlit, except the roofs (alpha 254)
 lay_over('windows.png', lambda p: None)
+lay_over('chaoran-reflection.png', lambda p: None, as_region=WATER)
 
 # ---------------------------------------------------------------- layers
 # Every pixel belongs to exactly one layer, so stacking them back to front

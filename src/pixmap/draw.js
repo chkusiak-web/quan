@@ -21,7 +21,8 @@ export const MOUNTAIN_STEPS = 5;
 
 // What each light turns into after dark, keyed by its daytime colour.
 const NIGHT_LIGHT = {
-  '#d3c6a2': '#ffd889', // window lattice: warm light
+  '#d3c6a2': '#ffd889', // tower lattice: warm light
+  '#596d88': '#ffd889', // house window openings: warm light
   '#9b908c': '#f0a040', // window bars, railing posts: deeper orange
   '#ded3c4': '#ffcf7a', // balcony railings
   '#7d7b83': '#f5b552', // eave lips and the ridge
@@ -37,7 +38,7 @@ const NIGHT_LIGHT = {
   '#23242f': '#24182a', // tile lines
 };
 // Halo radius and strength around each kind of light.
-const HALO = { '#d3c6a2': [6, 0.7], '#9b908c': [3, 0.3], '#ded3c4': [3, 0.3], '#7d7b83': [3, 0.28], '#d9a441': [3, 0.35], '#a8762c': [2, 0.2] };
+const HALO = { '#596d88': [6, 0.7], '#d3c6a2': [6, 0.7], '#9b908c': [3, 0.3], '#ded3c4': [3, 0.3], '#7d7b83': [3, 0.28], '#d9a441': [3, 0.35], '#a8762c': [2, 0.2] };
 const HALO_RGB = [255, 176, 82];
 const WATERLINE = 158; // the island's edge, for the tower's reflection
 
