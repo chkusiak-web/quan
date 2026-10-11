@@ -159,7 +159,7 @@ for x in range(w):
             region[p] = CLOUD  # low gaps in the haze are haze, not open sky
 
 # Chaoran Tower and the house windows are drawn separately
-# (tools/paint-tower.py, tools/paint-windows.py) and laid over the map here.
+# (tools/tower-sprite.py, tools/paint-windows.py) and laid over the map here.
 # Colours they need that the map lacks (the tower's golds) are appended to
 # the palette. Their lattice, railings, eave lips and gold are lights: the
 # renderer lets those glow after dark. Only fully opaque overlay pixels

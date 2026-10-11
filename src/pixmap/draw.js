@@ -28,6 +28,12 @@ const NIGHT_LIGHT = {
   '#7d7b83': '#f5b552', // eave lips and the ridge
   '#d9a441': '#ffe9a8', // gold, lit
   '#a8762c': '#e6a344', // gold, shaded
+  // Chaoran Tower (tools/tower-sprite.py)
+  '#b4ab9b': '#ffd889', // wall panels and rails: warm light
+  '#c49a4e': '#ffe9a8', // gold
+  '#76605f': '#c06a34', // wood
+  '#56484c': '#7c3c24', // wood in shade
+  '#4a4250': '#e89a3a', // open bays: lit interiors
   // The rest of the floodlit tower (and window frames): warm, dimmer.
   '#996460': '#d0743a', // lit columns
   '#71524b': '#a8552e', // columns
@@ -38,7 +44,7 @@ const NIGHT_LIGHT = {
   '#23242f': '#24182a', // tile lines
 };
 // Halo radius and strength around each kind of light.
-const HALO = { '#596d88': [6, 0.7], '#d3c6a2': [6, 0.7], '#9b908c': [3, 0.3], '#ded3c4': [3, 0.3], '#7d7b83': [3, 0.28], '#d9a441': [3, 0.35], '#a8762c': [2, 0.2] };
+const HALO = { '#596d88': [6, 0.7], '#d3c6a2': [6, 0.7], '#b4ab9b': [4, 0.45], '#c49a4e': [3, 0.35], '#4a4250': [3, 0.3], '#9b908c': [3, 0.3], '#ded3c4': [3, 0.3], '#7d7b83': [3, 0.28], '#d9a441': [3, 0.35], '#a8762c': [2, 0.2] };
 const HALO_RGB = [255, 176, 82];
 const WATERLINE = 158; // the island's edge, for the tower's reflection
 
