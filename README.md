@@ -38,3 +38,13 @@ Home page picks the palette from the clock. Preview another with `?time=night`.
   1 = nearest) for animation later. Drawing is deterministic (seeded).
 - **Chaoran Tower** (`src/scene/tower.js`) is drawn as a ~60 px hero
   landmark: bottle finial, hip-and-gable roof, three balconied storeys.
+
+## Pixmap
+
+`pixmap.html` shows the reference as a 512 × 320, 72-colour pixel map stored
+in code (`src/pixmap/baotu.js`: a palette plus one index byte per pixel).
+
+```
+python3 tools/pixelate.py 512 72     # reference -> public/reference/baotu-512x320.png
+python3 tools/pixmap-to-js.py public/reference/baotu-512x320.png src/pixmap/baotu.js
+```
