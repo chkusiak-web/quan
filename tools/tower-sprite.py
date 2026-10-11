@@ -377,10 +377,10 @@ def place(scene, sprite, pos=POS, treeline=136):
 
 
 def reflect(scene, placed, treeline=136):
-    """The tower in the lake: a soft, darker, bluer copy of what shows above
-    the trees, mirrored about the waterline and squashed a little, smeared
-    sideways by ripples, broken by thin gaps and fading with depth. It only
-    falls on water, and blends into the colour of the water it lands on."""
+    """The tower in the lake, done like the island trees' reflections: a
+    soft silhouette, mirrored at the waterline, nearly one tone (roofs a
+    touch darker than walls) blended into the water it lands on. Ripples are a few
+    short streaks of open water, not a striped copy of every detail."""
     import colorsys
     pal = scene.convert('RGB')
     water = sorted({pal.getpixel((x, y)) for x in range(300, 512) for y in range(160, 240)
@@ -393,25 +393,32 @@ def reflect(scene, placed, treeline=136):
     def nearest(c):
         return min(water, key=lambda p: sum((a - b) ** 2 for a, b in zip(p, c)))
 
+    def lum(c):
+        return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+
     out = {}
     xs = [x for x, _ in placed]
     for r in range(WATERLINE + 2, 240):
         src = round(WATERLINE - (r - WATERLINE) / 0.9)
         if src >= treeline or src < 0:
             continue
-        depth = (r - WATERLINE) / 80
-        sway = round(math.sin(r * 1.3))
+        depth = (r - WATERLINE) / 90
+        sway = 1 if (r // 3) % 2 else 0               # gentle, in bands of rows
         for X in range(min(xs) - 1, max(xs) + 2):
-            hit = placed.get((X - sway, src))
+            # Smear the outline over a few source rows, so the reflection is
+            # a soft mass like the trees' rather than tracing every eave.
+            hit = next((placed[(X - sway, sy)] for sy in range(src - 2, src + 3)
+                        if (X - sway, sy) in placed and sy < treeline), None)
             if not hit or not is_water(pal.getpixel((X, r))):
                 continue
-            if r % 4 == 3 and hashf(X, r, 41) < 0.7:   # thin ripple gaps
+            # Short streaks of open water break it up here and there.
+            if hashf(X // 4, r, 41) < 0.06 + depth * 0.3:
                 continue
-            if hashf(X, r, 42) < depth * 0.6:          # fading with depth
-                continue
-            tc = hit[0]
             under = pal.getpixel((X, r))
-            mix = tuple(int(0.45 * a * 0.85 + 0.55 * b) for a, b in zip(tc, under))
+            dark = lum(hit[0]) < 110                   # roofs and shadows vs. walls
+            k = 0.6 if dark else 0.66                  # how much of the water shows through
+            tone = (50, 78, 112) if dark else (70, 92, 122)
+            mix = tuple(int(k * b + (1 - k) * a) for a, b in zip(tone, under))
             out[(X, r)] = nearest(mix)
     return out
 

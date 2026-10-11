@@ -39,8 +39,8 @@ const NIGHT_LIGHT = {
   '#71524b': '#a8552e', // columns
   '#55413c': '#7c3c24', // walls
   '#3f3132': '#4c2418', // doorways, frames
-  '#4a5264': '#4a3a44', // roof, lit side
-  '#3b4048': '#3a2c36', // roof, shaded side
+  '#4a5264': '#6a4a44', // roof, lit side
+  '#3b4048': '#523a3a', // roof, shaded side
   '#23242f': '#24182a', // tile lines
 };
 // Halo radius and strength around each kind of light.
@@ -150,6 +150,21 @@ function glowMap(pix, t) {
         const fade = 1 - (yy - WATERLINE) / 60;
         if (LAYER[q] === lake) a[q] = Math.max(a[q], (0.5 * s + 0.2) * k * fade);
       }
+    }
+  }
+  // The floodlit tower glows as a whole: a wide, soft aura around its
+  // silhouette, strongest close in.
+  const R = 9;
+  for (let p = 0; p < PIXELS.length; p++) {
+    if (LAYER[p] !== tower) continue;
+    const x = p % W, y = (p / W) | 0;
+    for (let dy = -R; dy <= R; dy += 1) for (let dx = -R; dx <= R; dx += 1) {
+      const qx = x + dx, qy = y + dy;
+      if (qx < 0 || qy < 0 || qx >= W || qy >= H) continue;
+      const d = Math.hypot(dx, dy);
+      if (d > R) continue;
+      const q = qy * W + qx;
+      a[q] = Math.max(a[q], 0.42 * k * (1 - d / (R + 1)) ** 2);
     }
   }
   for (let p = 0; p < a.length; p++) a[p] = Math.min(a[p], 0.85);
