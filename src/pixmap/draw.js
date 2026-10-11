@@ -79,16 +79,31 @@ function night(out, { W, REGION }, t) {
   }
 }
 
-export function drawPixmap(canvas, pix, timeId = 'midday') {
-  const { W, H, PIXELS, REGION, PALETTE } = pix;
+// Colours one time of day into RGBA. `layers` (a set of layer names) keeps
+// only those layers; the rest come out transparent.
+export function renderPixmap(pix, timeId = 'midday', layers = null) {
+  const { W, H, PIXELS, REGION, PALETTE, LAYER, LAYERS } = pix;
   const lut = buildLut(pix, timeId);
+  const keep = layers && LAYERS.map((name) => layers.has(name));
   const out = new Uint8ClampedArray(W * H * 4);
+  // The sky layer is the full frame in the flat sky colour, so anything
+  // drawn just above it (birds, the moon) has sky behind it everywhere.
+  if (!keep || keep[LAYERS.indexOf('sky')]) {
+    const sky = hex(TIMES[timeId].skyFlat).map((v) => Math.round(v * 255));
+    for (let o = 0; o < out.length; o += 4) { out[o] = sky[0]; out[o + 1] = sky[1]; out[o + 2] = sky[2]; out[o + 3] = 255; }
+  }
   for (let p = 0; p < PIXELS.length; p++) {
+    if (keep && !keep[LAYER[p]]) continue;
     const l = (REGION[p] * PALETTE.length + PIXELS[p]) * 4, o = p * 4;
     out[o] = lut[l]; out[o + 1] = lut[l + 1]; out[o + 2] = lut[l + 2]; out[o + 3] = 255;
   }
-  night(out, pix, TIMES[timeId]);
+  if (!keep || keep[LAYERS.indexOf('sky')]) night(out, pix, TIMES[timeId]);
+  return out;
+}
+
+export function drawPixmap(canvas, pix, timeId = 'midday', layers = null) {
+  const { W, H } = pix;
   canvas.width = W;
   canvas.height = H;
-  canvas.getContext('2d').putImageData(new ImageData(out, W, H), 0, 0);
+  canvas.getContext('2d').putImageData(new ImageData(renderPixmap(pix, timeId, layers), W, H), 0, 0);
 }

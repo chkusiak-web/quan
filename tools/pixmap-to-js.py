@@ -1,8 +1,9 @@
 """Write a palette-indexed PNG from pixelate.py as a JS module.
 
 Each pixel also gets a region (land, sky, water, cloud) so the page can
-recolour each separately per time of day. Colours and regions are stored as
-two byte arrays, PIXELS and REGION.
+recolour each separately per time of day, and a layer (sky, clouds, ...,
+tree) so animated sprites can be drawn between layers. Colours, regions and
+layers are stored as byte arrays: PIXELS, REGION and LAYER.
 
 Usage: python3 tools/pixmap-to-js.py public/reference/baotu-512x320.png src/pixmap/baotu.js
 """
@@ -157,8 +158,119 @@ for x in range(w):
         if region[p] == SKY and hsv[idx[p]][1] < 0.42:
             region[p] = CLOUD
 
+# ---------------------------------------------------------------- layers
+# Every pixel belongs to exactly one layer, so stacking them back to front
+# rebuilds the picture. Animated sprites are drawn between layers.
+LAYERS = ['sky', 'clouds', 'mountains', 'island', 'tower', 'lake', 'village', 'ground', 'pool', 'tree']
+L = {name: i for i, name in enumerate(LAYERS)}
+layer = [None] * (w * h)
+
+
+def inside(poly, x, y):
+    hit = False
+    for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]):
+        if (y0 > y) != (y1 > y) and x < x0 + (x1 - x0) * (y - y0) / (y1 - y0):
+            hit = not hit
+    return hit
+
+
+# The cherry tree: everything connected to the top-left corner through
+# blossom pinks, bark browns and the dark of its branches.
+def treeish(c, y):
+    hu, s, v = hsv[c]
+    if pinkish(c):
+        return True
+    if v < 0.42 and (hu < 0.12 or hu > 0.8):  # bark and branch shadow
+        return True
+    if v < 0.3 and s < 0.35:  # near-black cracks in the bark
+        return True
+    return y < 112 and 0.15 < hu < 0.45 and s > 0.3  # young leaves in the canopy
+
+
+tree = set()
+queue = deque([0])
+tree.add(0)
+while queue:
+    p = queue.popleft()
+    x, y = p % w, p // w
+    for q, ok in ((p - 1, x > 0), (p + 1, x < w - 1), (p - w, y > 0), (p + w, y < 235)):
+        if ok and q not in tree and q % w < 270 and region[q] == LAND and treeish(idx[q], q // w):
+            tree.add(q)
+            queue.append(q)
+
+# Soften the tree's outline: edge pixels painted as a blend of blossom and
+# sky blue get a blossom shadow (or bark, next to bark) instead, so the
+# outline matches the tree at every time of day. Those pixels join the tree.
+rgb = [tuple(int(c[k:k + 2], 16) for k in (1, 3, 5)) for c in colors]
+lum = [0.3 * r + 0.59 * g + 0.11 * b for r, g, b in rgb]
+blossom_shade = min((c for c in range(n) if pinkish(c) and 0.5 < hsv[c][2] < 0.9 and hsv[c][1] > 0.3),
+                    key=lambda c: abs(lum[c] - 140))
+for _ in range(2):  # a second pass reaches specks tucked one pixel further in
+    fringe = []
+    for p in range(w * h):
+        x, y = p % w, p // w
+        if p in tree or x >= 270 or y >= 235 or region[p] != LAND:
+            continue
+        hu, s, v = hsv[idx[p]]
+        if not (0.5 < hu < 0.78 or s < 0.12):
+            continue
+        near = [q for q in (p - 1, p + 1, p - w, p + w, p - w - 1, p - w + 1, p + w - 1, p + w + 1)
+                if 0 <= q < w * h and q in tree]
+        if near:
+            dark = sum(hsv[idx[q]][2] < 0.42 for q in near) > len(near) / 2
+            fringe.append((p, min(near, key=lambda q: lum[idx[q]]) if dark else None))
+    for p, bark in fringe:
+        idx[p] = idx[bark] if bark is not None else blossom_shade
+        tree.add(p)
+
+# The knot-hole in the trunk shows plain sky above the ridge and mountain
+# below it, instead of the jumble of bands it was painted with.
+for y in range(80, 130):
+    for x in range(20, 70):
+        p = y * w + x
+        if p not in tree and region[p] != LAND:
+            region[p] = SKY if y < ridge[x] else MOUNTAIN
+
+TOWER = [(380, 98), (412, 98), (414, 142), (378, 142)]
+ISLAND = [(300, 128), (512, 128), (512, 163), (300, 163)]
+FAR_SHORE = [(90, 138), (300, 138), (300, 160), (90, 160)]
+LAKE = [(215, 145), (512, 145), (512, 252), (470, 246), (430, 226), (392, 216), (332, 200), (272, 166), (215, 160)]
+POOL = [(0, 228), (60, 225), (130, 228), (200, 236), (240, 250), (258, 280), (250, 320), (0, 320)]
+GROUND = [(0, 212), (60, 205), (120, 214), (200, 234), (262, 250), (300, 262), (332, 282), (360, 296), (512, 296),
+          (512, 320), (0, 320)]
+
+for p in range(w * h):
+    x, y = p % w, p // w
+    r = region[p]
+    if p in tree:
+        name = 'tree'
+    elif r == SKY:
+        name = 'sky'
+    elif r == CLOUD:
+        name = 'clouds'
+    elif r == MOUNTAIN:
+        name = 'mountains'
+    elif inside(TOWER, x, y):
+        name = 'tower'
+    elif r == LAND and (inside(ISLAND, x, y) or inside(FAR_SHORE, x, y)):
+        name = 'island'
+    elif inside(POOL, x, y):
+        name = 'pool'
+    elif inside(GROUND, x, y):
+        name = 'ground'
+    elif inside(LAKE, x, y) and (r == WATER or y > 165):
+        name = 'lake'
+    elif y < ridge[x] or (x < 250 and y < 132) or (x < 120 and y < 150):
+        name = 'tree'  # loose florets and leaves just off the canopy
+    elif y < 150:
+        name = 'island'
+    else:
+        name = 'village'
+    layer[p] = L[name]
+
 data = bytes(idx)
 regions = bytes(region)
+layers = bytes(layer)
 
 hexes = ",\n".join("  " + ", ".join(f"'{c}'" for c in colors[i:i + 8]) for i in range(0, n, 8))
 
@@ -183,6 +295,12 @@ export const PALETTE = [
 
 export const PIXELS = Uint8Array.from(atob(
 {b64lines(data)}
+), (c) => c.charCodeAt(0));
+
+export const LAYERS = {LAYERS!r};
+
+export const LAYER = Uint8Array.from(atob(
+{b64lines(layers)}
 ), (c) => c.charCodeAt(0));
 
 export const REGION = Uint8Array.from(atob(

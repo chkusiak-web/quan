@@ -42,13 +42,22 @@ Home page picks the palette from the clock. Preview another with `?time=night`.
 ## Pixmap
 
 `pixmap.html` shows the reference as a 512 × 320, 72-colour pixel map stored
-in code (`src/pixmap/baotu.js`: a palette plus one byte per pixel holding
-its colour and region: land, sky or water). It uses the same time-of-day
-palettes as the home page (`?time=night` to preview): land is graded, sky
-and clouds take the time's ramps by brightness, water picks up the horizon
-tint, and night adds stars and a moon where the sky shows.
+in code (`src/pixmap/baotu.js`: a palette plus, per pixel, its colour, its
+region and its layer). It uses the same time-of-day palettes as the home
+page (`?time=night` to preview):
+
+- **Regions** set how a pixel is recoloured: land is graded, the sky is one
+  flat colour, clouds take 6 shades and mountains 5 shades of the time's
+  ramps, water picks up the horizon tint. Night adds a moon.
+- **Layers**, back to front: sky, clouds, mountains, island, tower, lake,
+  village, ground, pool, tree. Stacked they rebuild the picture exactly;
+  animated sprites go between them.
+- The animals and loose petals are painted out (`tools/erase-sprites.py`) so
+  they can come back as sprites.
 
 ```
 python3 tools/pixelate.py 512 72     # reference -> public/reference/baotu-512x320.png
+python3 tools/erase-sprites.py public/reference/baotu-512x320.png
 python3 tools/pixmap-to-js.py public/reference/baotu-512x320.png src/pixmap/baotu.js
+node tools/export-pixmap-layers.js out/pixmap   # one PNG per layer per time of day
 ```
