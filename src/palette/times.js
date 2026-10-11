@@ -19,6 +19,7 @@ export const TIMES = {
   },
   midday: {
     label: 'Midday', from: 10, to: 14,
+    mountain: ['#4f8fcc', '#5f9cd6', '#71abe0', '#86bae8', '#9cc8ee'],
     cloud: ['#6fb6f0', '#8ac6f6', '#a9d5fa', '#c8e5fb', '#e4f1fb', '#fcfcfc'],
     skyFlat: '#3aa2f5', // one flat sky colour for the pixel map
     horizon: '#c9e6fc',
@@ -39,7 +40,7 @@ export const TIMES = {
   evening: {
     label: 'Evening', from: 17, to: 20,
     mountain: ['#5a3f78', '#6c4a86', '#805694', '#9663a0', '#ad72aa'], // distant ranges, dark to light
-    skyFlat: '#6a4290', // one flat sky colour for the pixel map
+    skyFlat: '#c46a86', // one flat sky colour for the pixel map
     sky: ['#2c2a6a', '#3e3478', '#5a3e86', '#7e4a8a', '#a8588a', '#d46c80', '#f08c72', '#ffb070'],
     cloud: ['#4e3a6e', '#74507e', '#a0608a', '#d07a86', '#f4a080', '#ffd09a'],
     hazeCloud: ['#8a5a86', '#b06a88', '#d4808a', '#ee9a86', '#ffbc8c'],

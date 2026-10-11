@@ -84,6 +84,24 @@ for p in range(HORIZON * w, w * h):
     if waterish(idx[p]):
         region[p] = WATER
 
+# Sky pockets: gaps between blossoms and branches are cut off from the top
+# edge, so the fill misses them. The deep sky blues appear nowhere else in
+# the upper picture, so any of them above the mountains is sky.
+def deep_sky(c):
+    hu, s, v = hsv[c]
+    return 0.54 < hu < 0.6 and s > 0.55 and v > 0.93
+
+
+for y in range(HORIZON):
+    for x in range(w):
+        p = y * w + x
+        if region[p] == LAND and deep_sky(idx[p]):
+            region[p] = SKY
+        elif region[p] == LAND and y < 118:
+            hu, sa, v = hsv[idx[p]]
+            if 0.53 < hu < 0.62 and sa > 0.12 and v > 0.9:  # pale sky through the knot-hole
+                region[p] = SKY
+
 # Clouds: grow from the white cores through their pale-blue shading, so a
 # cloud's own shadows are recoloured as cloud, not as sky.
 queue = deque(p for p in range(w * h) if region[p] == SKY and cloud_core(idx[p]))
@@ -97,7 +115,7 @@ while queue:
             qx, qy = x + dx, y + dy
             if 0 <= qx < w and 0 <= qy < h:
                 q = qy * w + qx
-                if region[q] == SKY and cloud_shade(idx[q]):
+                if region[q] in (SKY, LAND) and qy < HORIZON and cloud_shade(idx[q]):
                     region[q] = CLOUD
                     queue.append(q)
 
