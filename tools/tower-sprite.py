@@ -377,49 +377,48 @@ def place(scene, sprite, pos=POS, treeline=136):
 
 
 def reflect(scene, placed, treeline=136):
-    """The tower in the lake, done like the island trees' reflections: a
-    soft silhouette, mirrored at the waterline, nearly one tone (roofs a
-    touch darker than walls) blended into the water it lands on. Ripples are a few
-    short streaks of open water, not a striped copy of every detail."""
+    """The tower in the lake, done like the island trees' reflections: one
+    solid, even tone, mirrored at the waterline with its outline smeared
+    over a few rows. It covers the lake's highlight streaks too, so no
+    lines cut across it; only its outer edge is a step lighter."""
     import colorsys
     pal = scene.convert('RGB')
-    water = sorted({pal.getpixel((x, y)) for x in range(300, 512) for y in range(160, 240)
-                    if 0.5 < colorsys.rgb_to_hsv(*(v / 255 for v in pal.getpixel((x, y))))[0] < 0.65})
 
-    def is_water(c):
+    def is_lake(c):
         hu, sa, v = colorsys.rgb_to_hsv(*(k / 255 for k in c))
-        return 0.5 < hu < 0.65 and sa > 0.2 and v > 0.45
+        return 0.5 < hu < 0.7 and sa > 0.05 and v > 0.45
 
-    def nearest(c):
-        return min(water, key=lambda p: sum((a - b) ** 2 for a, b in zip(p, c)))
-
-    def lum(c):
-        return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
-
-    out = {}
+    mask = set()
     xs = [x for x, _ in placed]
     for r in range(WATERLINE + 2, 240):
         src = round(WATERLINE - (r - WATERLINE) / 0.9)
         if src >= treeline or src < 0:
             continue
-        depth = (r - WATERLINE) / 90
-        sway = 1 if (r // 3) % 2 else 0               # gentle, in bands of rows
         for X in range(min(xs) - 1, max(xs) + 2):
-            # Smear the outline over a few source rows, so the reflection is
-            # a soft mass like the trees' rather than tracing every eave.
-            hit = next((placed[(X - sway, sy)] for sy in range(src - 2, src + 3)
-                        if (X - sway, sy) in placed and sy < treeline), None)
-            if not hit or not is_water(pal.getpixel((X, r))):
+            if not is_lake(pal.getpixel((X, r))):
                 continue
-            # Short streaks of open water break it up here and there.
-            if hashf(X // 4, r, 41) < 0.06 + depth * 0.3:
-                continue
-            under = pal.getpixel((X, r))
-            dark = lum(hit[0]) < 110                   # roofs and shadows vs. walls
-            k = 0.6 if dark else 0.66                  # how much of the water shows through
-            tone = (50, 78, 112) if dark else (70, 92, 122)
-            mix = tuple(int(k * b + (1 - k) * a) for a, b in zip(tone, under))
-            out[(X, r)] = nearest(mix)
+            if any((X, sy) in placed for sy in range(src - 1, src + 2) if sy < treeline):
+                mask.add((X, r))
+    # Colour: the water underneath, darkened and pulled toward deep lake
+    # blue. Highlight streaks are first flattened to the lake's mid tone, so
+    # they don't show through as lines.
+    lake = [pal.getpixel((x, y)) for x in range(300, 512) for y in range(165, 235)
+            if is_lake(pal.getpixel((x, y)))]
+    mid = tuple(sorted(c[i] for c in lake)[len(lake) // 2] for i in range(3))
+    colours = sorted(set(lake))
+
+    def nearest(c):
+        return min(colours, key=lambda p: sum((a - b) ** 2 for a, b in zip(p, c)))
+
+    deep = (39, 89, 120)                             # '#275978'
+    out = {}
+    for (X, r) in mask:
+        under = pal.getpixel((X, r))
+        if sum(under) > sum(mid) + 40:
+            under = mid
+        edge = any((X + dx, r + dy) not in mask for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)))
+        k = 0.25 if edge else 0.45                   # softer at the edge
+        out[(X, r)] = nearest(tuple(int(a * (1 - k) + b * k) for a, b in zip(under, deep)))
     return out
 
 
