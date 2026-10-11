@@ -1,6 +1,7 @@
 // Paints a pixmap (see tools/pixmap-to-js.py) onto a canvas in the colours
 // of one time of day. Land is graded like the procedural scene; sky takes the
-// time's sky and cloud ramps by brightness; water picks up the horizon tint.
+// time's single flat sky colour, clouds take exactly CLOUD_STEPS shades of
+// the time's cloud ramp; water picks up the horizon tint.
 
 import { TIMES, hex, mix, grade } from '../palette/times.js';
 
@@ -14,30 +15,42 @@ function ramp(stops, t) {
   return mix(hex(stops[i]), hex(stops[i + 1]), f - i);
 }
 
-// Brightness range of the colours that appear in the sky, split into clouds and blue.
-function skyRanges({ PALETTE, PIXELS }) {
-  const n = PALETTE.length, seen = new Set();
-  for (const b of PIXELS) if (b >= n && b < 2 * n) seen.add(b - n);
-  const r = { cloud: [1, 0], blue: [1, 0] };
-  for (const c of seen) {
-    const rgb = hex(PALETTE[c]), k = sat(rgb) < 0.15 ? 'cloud' : 'blue', l = lum(rgb);
-    r[k] = [Math.min(r[k][0], l), Math.max(r[k][1], l)];
-  }
-  return r;
+const LAND = 0, SKY = 1, WATER = 2, CLOUD = 3, MOUNTAIN = 4;
+export const CLOUD_STEPS = 6;
+export const MOUNTAIN_STEPS = 5;
+
+// Colours used by a region, sorted dark to light.
+function usedIn({ PALETTE, PIXELS, REGION }, region) {
+  const seen = new Set();
+  for (let p = 0; p < PIXELS.length; p++) if (REGION[p] === region) seen.add(PIXELS[p]);
+  return [...seen].sort((a, b) => lum(hex(PALETTE[a])) - lum(hex(PALETTE[b])));
+}
+
+// Every colour in a region lands on one of `steps` shades by brightness
+// rank, so the region uses the same number of colours at every time of
+// day. Midday keeps shades picked from the picture's own colours; other
+// times sample their ramp between `from` and 1.
+function rankedShades(pix, region, steps, stops, from = 0) {
+  const used = usedIn(pix, region);
+  const rankOf = new Map(used.map((c, i) => [c, i]));
+  const stepOf = (c) => Math.round((rankOf.get(c) / Math.max(1, used.length - 1)) * (steps - 1));
+  const shades = stops
+    ? Array.from({ length: steps }, (_, k) => ramp(stops, from + ((1 - from) * k) / (steps - 1)))
+    : Array.from({ length: steps }, (_, k) => hex(pix.PALETTE[used[Math.round((k / (steps - 1)) * (used.length - 1))]]));
+  return (c) => (rankOf.has(c) ? shades[stepOf(c)] : null);
 }
 
 function buildLut(pix, timeId) {
-  const t = TIMES[timeId], n = pix.PALETTE.length, horizon = hex(t.horizon), ranges = skyRanges(pix);
-  const lut = new Uint8ClampedArray(3 * n * 4);
+  const t = TIMES[timeId], n = pix.PALETTE.length, horizon = hex(t.horizon);
+  // Cloud shadows use the lighter part of the ramp so bellies stay soft.
+  const cloud = rankedShades(pix, CLOUD, CLOUD_STEPS, t.cloud, 0.4);
+  const mountain = rankedShades(pix, MOUNTAIN, MOUNTAIN_STEPS, t.mountain);
+  const lut = new Uint8ClampedArray(5 * n * 4);
   pix.PALETTE.forEach((h, c) => {
     const base = hex(h), graded = grade(base, t);
-    let sky = base;
-    if (t.sky) {
-      const k = sat(base) < 0.15 ? 'cloud' : 'blue', [lo, hi] = ranges[k];
-      const at = hi > lo ? (lum(base) - lo) / (hi - lo) : 0.5;
-      sky = k === 'cloud' ? ramp(t.cloud, at) : ramp(t.sky, at);
-    }
-    [graded, sky, mix(graded, horizon, t.waterSky)].forEach((rgb, region) => {
+    const sky = hex(t.skyFlat); // the sky is one flat colour; clouds hold the horizon
+    const byRegion = [graded, sky, mix(graded, horizon, t.waterSky), cloud(c) ?? base, mountain(c) ?? graded];
+    byRegion.forEach((rgb, region) => {
       const o = (region * n + c) * 4;
       for (let i = 0; i < 3; i++) lut[o + i] = Math.round(rgb[i] * 255);
       lut[o + 3] = 255;
@@ -47,8 +60,8 @@ function buildLut(pix, timeId) {
 }
 
 // The moon, only where the sky shows through.
-function night(out, { W, H, PALETTE, PIXELS }, t) {
-  const n = PALETTE.length, isSky = (x, y) => { const b = PIXELS[y * W + x]; return b >= n && b < 2 * n; };
+function night(out, { W, REGION }, t) {
+  const isSky = (x, y) => REGION[y * W + x] === SKY;
   const put = (x, y, rgb, a) => {
     const o = (y * W + x) * 4;
     for (let i = 0; i < 3; i++) out[o + i] += (rgb[i] - out[o + i]) * a;
@@ -67,11 +80,11 @@ function night(out, { W, H, PALETTE, PIXELS }, t) {
 }
 
 export function drawPixmap(canvas, pix, timeId = 'midday') {
-  const { W, H, PIXELS } = pix;
+  const { W, H, PIXELS, REGION, PALETTE } = pix;
   const lut = buildLut(pix, timeId);
   const out = new Uint8ClampedArray(W * H * 4);
   for (let p = 0; p < PIXELS.length; p++) {
-    const l = PIXELS[p] * 4, o = p * 4;
+    const l = (REGION[p] * PALETTE.length + PIXELS[p]) * 4, o = p * 4;
     out[o] = lut[l]; out[o + 1] = lut[l + 1]; out[o + 2] = lut[l + 2]; out[o + 3] = 255;
   }
   night(out, pix, TIMES[timeId]);

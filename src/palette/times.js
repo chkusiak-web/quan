@@ -8,6 +8,8 @@ export const TIME_ORDER = ['morning', 'midday', 'afternoon', 'evening', 'night']
 export const TIMES = {
   morning: {
     label: 'Morning', from: 5, to: 10,
+    mountain: ['#6a7fb0', '#7f93c0', '#96a8cc', '#b0bed6', '#cad2de'], // distant ranges, dark to light
+    skyFlat: '#5c9ee2', // one flat sky colour for the pixel map
     sky: ['#3a7fd0', '#4a8edb', '#5c9ee2', '#74ade6', '#93bde6', '#b6cde2', '#dcd8d8', '#f6dcc6'],
     cloud: ['#a3a7cc', '#bcbdd8', '#d6d0de', '#ecdfe2', '#f9ebe4', '#fff6ec'],
     hazeCloud: ['#c2c4d8', '#d4d2dc', '#e4dde0', '#f2e6e2', '#fcf0ea'],
@@ -17,12 +19,16 @@ export const TIMES = {
   },
   midday: {
     label: 'Midday', from: 10, to: 14,
+    cloud: ['#6fb6f0', '#8ac6f6', '#a9d5fa', '#c8e5fb', '#e4f1fb', '#fcfcfc'],
+    skyFlat: '#3aa2f5', // one flat sky colour for the pixel map
     horizon: '#c9e6fc',
     mul: [1, 1, 1], lift: [0, 0, 0], sat: 1,
     haze: 0, waterSky: 0, emissive: 0, glow: 0, star: 0, moon: 0, animals: 1,
   },
   afternoon: {
     label: 'Afternoon', from: 14, to: 17,
+    mountain: ['#3f78ae', '#5088be', '#6699c8', '#7eaad0', '#98bcd8'], // distant ranges, dark to light
+    skyFlat: '#3c96de', // one flat sky colour for the pixel map
     sky: ['#2a7acc', '#3288d6', '#3c96de', '#4ca3e2', '#64b0e4', '#84bee2', '#aacede', '#d6dccc'],
     cloud: ['#9cb0cc', '#b8c6d6', '#d0d8dc', '#e6e6e0', '#f6f0e4', '#fffaee'],
     hazeCloud: ['#b4ccdc', '#c8d8e0', '#dae2e2', '#eaeae2', '#f8f4ea'],
@@ -32,6 +38,8 @@ export const TIMES = {
   },
   evening: {
     label: 'Evening', from: 17, to: 20,
+    mountain: ['#5a3f78', '#6c4a86', '#805694', '#9663a0', '#ad72aa'], // distant ranges, dark to light
+    skyFlat: '#6a4290', // one flat sky colour for the pixel map
     sky: ['#2c2a6a', '#3e3478', '#5a3e86', '#7e4a8a', '#a8588a', '#d46c80', '#f08c72', '#ffb070'],
     cloud: ['#4e3a6e', '#74507e', '#a0608a', '#d07a86', '#f4a080', '#ffd09a'],
     hazeCloud: ['#8a5a86', '#b06a88', '#d4808a', '#ee9a86', '#ffbc8c'],
@@ -41,6 +49,8 @@ export const TIMES = {
   },
   night: {
     label: 'Night', from: 20, to: 5,
+    mountain: ['#141c38', '#1a2442', '#212c4c', '#283456', '#303e62'], // distant ranges, dark to light
+    skyFlat: '#0e1630', // one flat sky colour for the pixel map
     sky: ['#050918', '#080e24', '#0c142e', '#111a38', '#162242', '#1c2a4c', '#243458', '#2e4064'],
     cloud: ['#121a30', '#1a243c', '#232e48', '#2e3a56', '#3e4c68', '#56668a'],
     hazeCloud: ['#1a2440', '#202c48', '#283652', '#323f5c', '#3c4a66'],
