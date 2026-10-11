@@ -3,7 +3,6 @@
 // time's sky and cloud ramps by brightness; water picks up the horizon tint.
 
 import { TIMES, hex, mix, grade } from '../palette/times.js';
-import { rng } from '../core/rng.js';
 
 const lum = ([r, g, b]) => 0.3 * r + 0.59 * g + 0.11 * b;
 const sat = (rgb) => { const hi = Math.max(...rgb); return hi ? (hi - Math.min(...rgb)) / hi : 0; };
@@ -47,20 +46,13 @@ function buildLut(pix, timeId) {
   return lut;
 }
 
-// Stars and a moon, only where the sky shows through.
+// The moon, only where the sky shows through.
 function night(out, { W, H, PALETTE, PIXELS }, t) {
   const n = PALETTE.length, isSky = (x, y) => { const b = PIXELS[y * W + x]; return b >= n && b < 2 * n; };
   const put = (x, y, rgb, a) => {
     const o = (y * W + x) * 4;
     for (let i = 0; i < 3; i++) out[o + i] += (rgb[i] - out[o + i]) * a;
   };
-  if (t.star) {
-    const rand = rng(7);
-    for (let s = 0; s < 220; s++) {
-      const x = Math.floor(rand() * W), y = Math.floor(rand() * H * 0.42), a = 0.35 + rand() * 0.65;
-      if (isSky(x, y)) put(x, y, [255, 246, 216], a * t.star);
-    }
-  }
   if (t.moon) {
     const cx = 330, cy = 34, r = 7;
     for (let y = cy - r - 3; y <= cy + r + 3; y++) {
