@@ -13,7 +13,7 @@ import sys
 from collections import deque
 from PIL import Image
 
-LAND, SKY, WATER, CLOUD, MOUNTAIN = 0, 1, 2, 3, 4
+LAND, SKY, WATER, CLOUD, MOUNTAIN, LIGHT = 0, 1, 2, 3, 4, 5
 HORIZON = 140  # rows below this can be water; sky never reaches it
 
 src, dst = sys.argv[1], sys.argv[2]
@@ -158,31 +158,42 @@ for x in range(w):
         if region[p] == SKY and hsv[idx[p]][1] < 0.42:
             region[p] = CLOUD
 
-# Chaoran Tower is drawn separately (tools/paint-tower.py) and laid over the
-# map here, in the map's own colours.
+# Chaoran Tower and the house windows are drawn separately
+# (tools/paint-tower.py, tools/paint-windows.py) and laid over the map here.
+# Colours they need that the map lacks (the tower's golds) are appended to
+# the palette. Their lattice, railings, eave lips and gold are lights: the
+# renderer lets those glow after dark.
 import os
+LIGHTS = {'#d3c6a2', '#9b908c', '#ded3c4', '#7d7b83', '#d9a441', '#a8762c'}
+by_hex = {c: i for i, c in enumerate(colors)}
 tower_px = set()
-overlay = os.path.join(os.path.dirname(src), 'chaoran-tower.png')
-if os.path.exists(overlay):
-    by_hex = {c: i for i, c in enumerate(colors)}
-    ov = Image.open(overlay).convert('RGBA')
-    # Colours the overlay needs that the map lacks (the tower's golds) are
-    # appended to the palette.
-    for r_, g_, b_, a_ in {ov.getpixel((x, y)) for y in range(h) for x in range(w) if ov.getpixel((x, y))[3]}:
-        c = '#%02x%02x%02x' % (r_, g_, b_)
-        if c not in by_hex:
-            by_hex[c] = len(colors)
-            colors.append(c)
-            hsv.append(colorsys.rgb_to_hsv(r_ / 255, g_ / 255, b_ / 255))
-            n += 1
+
+
+def lay_over(name, on_paint, all_lit=False):
+    path = os.path.join(os.path.dirname(src), name)
+    if not os.path.exists(path):
+        return
+    global n
+    ov = Image.open(path).convert('RGBA')
     for y in range(h):
         for x in range(w):
             r_, g_, b_, a_ = ov.getpixel((x, y))
-            if a_:
-                p = y * w + x
-                idx[p] = by_hex['#%02x%02x%02x' % (r_, g_, b_)]
-                region[p] = LAND
-                tower_px.add(p)
+            if not a_:
+                continue
+            c = '#%02x%02x%02x' % (r_, g_, b_)
+            if c not in by_hex:
+                by_hex[c] = len(colors)
+                colors.append(c)
+                hsv.append(colorsys.rgb_to_hsv(r_ / 255, g_ / 255, b_ / 255))
+                n += 1
+            p = y * w + x
+            idx[p] = by_hex[c]
+            region[p] = LIGHT if all_lit or c in LIGHTS else LAND
+            on_paint(p)
+
+
+lay_over('chaoran-tower.png', tower_px.add, all_lit=True)  # the whole tower is floodlit
+lay_over('windows.png', lambda p: None)
 
 # ---------------------------------------------------------------- layers
 # Every pixel belongs to exactly one layer, so stacking them back to front
@@ -277,7 +288,7 @@ for p in range(w * h):
         name = 'clouds'
     elif r == MOUNTAIN:
         name = 'mountains'
-    elif r == LAND and (inside(ISLAND, x, y) or inside(FAR_SHORE, x, y)):
+    elif r in (LAND, LIGHT) and (inside(ISLAND, x, y) or inside(FAR_SHORE, x, y)):
         name = 'island'
     elif inside(POOL, x, y):
         name = 'pool'
@@ -312,7 +323,7 @@ with open(dst, "w") as f:
 export const W = {w};
 export const H = {h};
 
-export const REGIONS = ['land', 'sky', 'water', 'cloud', 'mountain'];
+export const REGIONS = ['land', 'sky', 'water', 'cloud', 'mountain', 'light'];
 
 export const PALETTE = [
 {hexes},

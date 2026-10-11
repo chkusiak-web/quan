@@ -52,6 +52,10 @@ page (`?time=night` to preview):
 - **Layers**, back to front: sky, clouds, mountains, island, tower, lake,
   village, ground, pool, tree. Stacked they rebuild the picture exactly;
   animated sprites go between them.
+- **Night lights**: house windows (`tools/paint-windows.py`) and the whole
+  tower are lights. In the evening they warm up; at night windows glow
+  yellow-white, the tower is floodlit gold, and a soft halo (the `glow`
+  layer, on top) spills around them and ripples on the lake.
 - Chaoran Tower is drawn in code (`tools/paint-tower.py`) with the map's colours
   and laid over the old tower.
 - The animals and loose petals are painted out (`tools/erase-sprites.py`) so
@@ -61,6 +65,7 @@ page (`?time=night` to preview):
 python3 tools/pixelate.py 512 72     # reference -> public/reference/baotu-512x320.png
 python3 tools/erase-sprites.py public/reference/baotu-512x320.png
 python3 tools/paint-tower.py                   # Chaoran Tower -> public/reference/chaoran-tower.png
+python3 tools/paint-windows.py                 # house windows -> public/reference/windows.png
 python3 tools/pixmap-to-js.py public/reference/baotu-512x320.png src/pixmap/baotu.js
 node tools/export-pixmap-layers.js out/pixmap   # one PNG per layer per time of day
 ```

@@ -17,7 +17,7 @@ for (const time of TIME_ORDER) {
   const dir = join(outDir, time);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'composite.png'), encodePng(renderPixmap(baotu, time), baotu.W, baotu.H, scale));
-  baotu.LAYERS.forEach((name, i) => {
+  [...baotu.LAYERS, 'glow'].forEach((name, i) => {
     const png = encodePng(renderPixmap(baotu, time, new Set([name])), baotu.W, baotu.H, scale);
     writeFileSync(join(dir, `${String(i).padStart(2, '0')}-${name}.png`), png);
   });
