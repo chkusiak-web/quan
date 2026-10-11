@@ -16,7 +16,7 @@ BASE = 'public/reference/baotu-512x320.png'
 OUT = 'public/reference/chaoran-tower.png'
 CX = 397  # centre column
 
-# Colours, by hex, all from the map's 72-colour palette.
+# Colours, by hex, from the map's palette; the two golds are added to it.
 INK = '#23242f'      # deepest roof shadow, tile lines
 ROOF_D = '#3b4048'   # roof, shaded side
 ROOF = '#4a5264'     # roof, lit side
@@ -28,7 +28,8 @@ COL_L = '#996460'    # lit columns, left side
 LATTICE = '#d3c6a2'  # window lattice (warm, lights up at night)
 RAIL = '#ded3c4'     # balcony railing
 RAIL_D = '#9b908c'   # railing posts and base
-GOLD = '#d0d56d'     # finial, bracket highlights, plaque frame
+GOLD = '#d9a441'     # finial, bracket highlights, plaque frame (added to the palette)
+GOLD_D = '#a8762c'   # gold in shadow (added to the palette)
 
 
 def tower():
@@ -60,8 +61,8 @@ def tower():
     # Finial: a gold bottle on a grey base.
     put(0, 93, GOLD)
     put(0, 94, GOLD)
-    row(95, 1, lambda x: GOLD if x <= 0 else RIDGE)
-    row(96, 1, lambda x: GOLD if x <= 0 else RIDGE)
+    row(95, 1, lambda x: GOLD if x <= 0 else GOLD_D)
+    row(96, 1, lambda x: GOLD if x <= 0 else GOLD_D)
     put(0, 97, RIDGE)
     row(98, 2, lambda x: RIDGE)
 
@@ -98,7 +99,7 @@ def tower():
             row(y + i, hw, lambda x, i=i: tiles(x, i))
         row(y + 4, bot + 1, lambda x: RIDGE)    # lip
         corners(y + 4, bot + 1)
-        row(y + 5, wall, lambda x: GOLD if x % 2 == 0 else WOOD_D)   # bracket band
+        row(y + 5, wall, lambda x: (GOLD if x < 0 else GOLD_D) if x % 2 == 0 else WOOD_D)   # bracket band
         if k == 2:
             break                                # the lowest storey hides in the trees
         for j in range(4):                       # columns, lattice windows, doorway

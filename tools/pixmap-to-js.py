@@ -166,6 +166,15 @@ overlay = os.path.join(os.path.dirname(src), 'chaoran-tower.png')
 if os.path.exists(overlay):
     by_hex = {c: i for i, c in enumerate(colors)}
     ov = Image.open(overlay).convert('RGBA')
+    # Colours the overlay needs that the map lacks (the tower's golds) are
+    # appended to the palette.
+    for r_, g_, b_, a_ in {ov.getpixel((x, y)) for y in range(h) for x in range(w) if ov.getpixel((x, y))[3]}:
+        c = '#%02x%02x%02x' % (r_, g_, b_)
+        if c not in by_hex:
+            by_hex[c] = len(colors)
+            colors.append(c)
+            hsv.append(colorsys.rgb_to_hsv(r_ / 255, g_ / 255, b_ / 255))
+            n += 1
     for y in range(h):
         for x in range(w):
             r_, g_, b_, a_ = ov.getpixel((x, y))
