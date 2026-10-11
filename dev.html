@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quan scene lab</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body class="dev">
+    <aside id="panel">
+      <h1>Scene lab</h1>
+      <section>
+        <h2>Time of day</h2>
+        <div id="times"></div>
+      </section>
+      <section>
+        <h2>Reference overlay</h2>
+        <input id="overlay" type="range" min="0" max="100" value="0" />
+        <label><input id="flip" type="checkbox" /> Flicker compare</label>
+      </section>
+      <section>
+        <h2>Zoom</h2>
+        <div id="zooms"></div>
+      </section>
+      <section>
+        <h2>Layers <small>(back to front)</small></h2>
+        <ul id="layers"></ul>
+      </section>
+    </aside>
+    <main id="stage">
+      <div id="frame">
+        <canvas id="scene" width="640" height="400"></canvas>
+        <img id="ref" src="/reference/baotu-reference.webp" alt="" />
+      </div>
+    </main>
+    <script type="module" src="/src/dev.js"></script>
+  </body>
+</html>

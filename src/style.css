@@ -1,0 +1,33 @@
+:root {
+  --bg: #0d1320;
+  --panel: #151d2e;
+  --ink: #e6ebf5;
+  --muted: #8a96ad;
+  --accent: #f0a85c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; }
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+
+/* Home: the scene fills the window, cropped like background-size: cover. */
+.home { overflow: hidden; }
+.home canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: cover; }
+
+/* Dev lab */
+.dev { display: flex; min-height: 100%; }
+#panel { width: 260px; flex: none; padding: 16px; background: var(--panel); overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+#panel h1 { font-size: 16px; margin: 0 0 12px; }
+#panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 18px 0 8px; }
+#panel button { background: #22304a; color: var(--ink); border: 1px solid #2f4063; border-radius: 6px; padding: 5px 9px; margin: 0 4px 4px 0; cursor: pointer; }
+#panel button.on { background: var(--accent); color: #1a1208; border-color: var(--accent); }
+#panel input[type=range] { width: 100%; }
+#layers { list-style: none; padding: 0; margin: 0; }
+#layers li { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+#layers small { color: var(--muted); margin-left: auto; }
+#stage { flex: 1; overflow: auto; padding: 16px; }
+#frame { position: relative; width: max-content; }
+#ref { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; object-fit: fill; }
+@media (max-width: 700px) {
+  .dev { flex-direction: column; }
+  #panel { width: 100%; position: static; max-height: none; }
+}
