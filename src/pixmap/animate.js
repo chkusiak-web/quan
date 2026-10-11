@@ -1,0 +1,195 @@
+// Animated pixel map. The layers are rendered once for the time of day and
+// grouped into a few stacks; every frame the stacks are laid down back to
+// front with the moving pieces drawn between them. Sprites take their
+// colours from the map's palette through the same lookup table as the
+// layers, so they recolour with the time of day.
+//
+// Everything works on plain RGBA buffers, so the same code drives the page
+// and the preview tool (tools/preview-anim.js).
+
+import { renderPixmap, buildLut } from './draw.js';
+import { TIMES } from '../palette/times.js';
+
+export const FPS = 10;
+
+// Layer stacks, back to front. Sprites go in the slots between them.
+const STACKS = {
+  back: ['sky', 'clouds', 'mountains', 'island', 'tower', 'lake'],
+  mid: ['village', 'ground', 'pool'],
+  front: ['tree', 'glow'],
+};
+
+const REGION = { land: 0, sky: 1, water: 2, cloud: 3, mountain: 4, light: 5 };
+
+// Stable hash in [0, 1).
+function hash(a, b, c = 0) {
+  let v = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + Math.imul(c | 0, 1442695041);
+  v = Math.imul(v ^ (v >>> 13), 1274126177);
+  return ((v ^ (v >>> 16)) >>> 0) / 4294967296;
+}
+
+// ---------------------------------------------------------------- fountains
+// The three spring jets in the pool: x, top of the spray, base.
+const JETS = [
+  { x: 89, top: 239, base: 268 },
+  { x: 115, top: 249, base: 280 },
+  { x: 145, top: 245, base: 268 },
+];
+
+// ---------------------------------------------------------------- the scene
+export function createScene(pix, timeId) {
+  const { W, H, PALETTE, LAYER, LAYERS, REGION: REG } = pix;
+  const n = PALETTE.length;
+  const lut = buildLut(pix, timeId);
+  const t = TIMES[timeId];
+
+  const stacks = {};
+  for (const [k, names] of Object.entries(STACKS)) stacks[k] = renderPixmap(pix, timeId, new Set(names));
+  // Only the covered pixels of the upper stacks need laying down each frame.
+  const covered = (buf) => {
+    const idx = [];
+    for (let p = 0; p < W * H; p++) if (buf[p * 4 + 3]) idx.push(p);
+    return Int32Array.from(idx);
+  };
+  const midIdx = covered(stacks.mid);
+  const frontIdx = covered(stacks.front);
+
+  // A palette colour in a region, as RGB for this time of day.
+  const nearestIndex = (hexc) => {
+    const want = [1, 3, 5].map((i) => parseInt(hexc.slice(i, i + 2), 16));
+    let best = 0, bd = Infinity;
+    PALETTE.forEach((h, i) => {
+      const c = [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+      const d = c.reduce((s, v, k) => s + (v - want[k]) ** 2, 0);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  };
+  const colour = (hexc, region) => {
+    const o = (REGION[region] * n + nearestIndex(hexc)) * 4;
+    return [lut[o], lut[o + 1], lut[o + 2]];
+  };
+  const C = {
+    foam: colour('#fcfcfc', 'water'),
+    spray: colour('#dfeefa', 'water'),
+    ring: colour('#b0d9fa', 'water'),
+    glint: colour('#fcfcfc', 'water'),
+    glintSoft: colour('#a3d2f8', 'water'),
+  };
+
+  const layerIs = (name) => { const k = LAYERS.indexOf(name); return (p) => LAYER[p] === k; };
+  const inPool = layerIs('pool');
+  const inLake = layerIs('lake');
+  const isWater = (p) => REG[p] === REGION.water;
+
+  // Jet pixels: the bright spray inside each jet's column.
+  const jetPx = JETS.map((j) => {
+    const px = [];
+    for (let y = j.top; y <= j.base; y++) for (let x = j.x - 7; x <= j.x + 7; x++) {
+      const p = y * W + x, o = p * 4, b = stacks.mid;
+      if (inPool(p) && b[o] + b[o + 1] + b[o + 2] > 600) px.push(p);
+    }
+    return px;
+  });
+
+  // Open lake water for glints: water pixels of the lake layer.
+  const lakePx = [];
+  for (let p = 0; p < W * H; p++) if (inLake(p) && isWater(p) && ((p / W) | 0) > 165) lakePx.push(p);
+
+  const put = (out, x, y, c, a = 1) => {
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    const o = (y * W + x) * 4;
+    for (let i = 0; i < 3; i++) out[o + i] += (c[i] - out[o + i]) * a;
+  };
+  const over = (out, buf, idx) => {
+    for (let i = 0; i < idx.length; i++) {
+      const o = idx[i] * 4, a = buf[o + 3] / 255;
+      if (a === 1) { out[o] = buf[o]; out[o + 1] = buf[o + 1]; out[o + 2] = buf[o + 2]; }
+      else for (let c = 0; c < 3; c++) out[o + c] += (buf[o + c] - out[o + c]) * a;
+    }
+  };
+
+  // ---- lake: glints that twinkle in and out
+  function lakeGlints(out, f) {
+    const LIFE = 14, COUNT = 14;
+    for (let i = 0; i < COUNT; i++) {
+      const cycle = Math.floor((f + i * 7) / LIFE), age = (f + i * 7) % LIFE;
+      const p = lakePx[Math.floor(hash(i, cycle, 3) * lakePx.length)];
+      if (p === undefined) continue;
+      const x = p % W, y = (p / W) | 0;
+      const len = 2 + Math.floor(hash(i, cycle, 4) * 3);
+      const mid = age > 3 && age < LIFE - 4;
+      for (let k = 0; k < len; k++) {
+        const q = y * W + x + k;
+        if (!inLake(q) || !isWater(q)) continue;
+        if (mid) put(out, x + k, y, k === 0 || k === len - 1 ? C.glintSoft : C.glint, 0.9 * (t.waterSky > 0.25 ? 0.6 : 1));
+        else if (age <= 3 || age >= LIFE - 4) put(out, x + k, y, C.glintSoft, 0.6);
+      }
+    }
+  }
+
+  // ---- pool: shimmering jets, flickering spray, spreading ripples
+  function fountains(out, f) {
+    JETS.forEach((j, ji) => {
+      // Bands of light travel up each jet.
+      for (const p of jetPx[ji]) {
+        const x = p % W, y = (p / W) | 0;
+        const band = (y + f * 2 + ji * 3) % 6;
+        if (band === 0) put(out, x, y, C.foam);
+        else if (band === 3 && hash(x, y, f) < 0.5) put(out, x, y, C.spray, 0.7);
+      }
+      // Spray flicking off the crown.
+      for (let k = 0; k < 5; k++) {
+        const r = hash(ji, f, k);
+        const dx = Math.round((r - 0.5) * 8), dy = -1 - Math.floor(hash(k, f, ji) * 4);
+        put(out, j.x + dx, j.top + dy + Math.abs(dx) / 2, r < 0.5 ? C.foam : C.spray, 0.85);
+      }
+      // Ripple rings spreading from the base.
+      const PERIOD = 18;
+      for (let ring = 0; ring < 2; ring++) {
+        const age = (f + ji * 5 + ring * PERIOD / 2) % PERIOD;
+        const rx = 4 + age * 0.9, ry = rx * 0.32;
+        const fade = 1 - age / PERIOD;
+        for (let a = 0; a < Math.PI * 2; a += 1 / rx) {
+          if (Math.sin(a * rx * 0.8) < -0.1) continue;          // dashed
+          const x = Math.round(j.x + Math.cos(a) * rx), y = Math.round(j.base + Math.sin(a) * ry);
+          const p = y * W + x;
+          if (inPool(p) && isWater(p)) put(out, x, y, C.ring, 0.75 * fade);
+        }
+      }
+    });
+  }
+
+  return {
+    W, H,
+    // Draw frame number f into out (a W * H * 4 RGBA buffer).
+    frame(out, f) {
+      out.set(stacks.back);
+      lakeGlints(out, f);
+      over(out, stacks.mid, midIdx);
+      fountains(out, f);
+      over(out, stacks.front, frontIdx);
+      return out;
+    },
+  };
+}
+
+// Browser loop: runs at FPS, pauses when hidden, still frame for reduced motion.
+export function play(canvas, pix, timeId) {
+  const scene = createScene(pix, timeId);
+  canvas.width = scene.W;
+  canvas.height = scene.H;
+  const ctx = canvas.getContext('2d');
+  const buf = new Uint8ClampedArray(scene.W * scene.H * 4);
+  const img = new ImageData(buf, scene.W, scene.H);
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let f = 0, last = 0;
+  const draw = () => { scene.frame(buf, f); ctx.putImageData(img, 0, 0); };
+  draw();
+  if (still) return;
+  const tick = (now) => {
+    if (now - last >= 1000 / FPS) { last = now; f++; draw(); }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}

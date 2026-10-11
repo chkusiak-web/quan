@@ -69,7 +69,7 @@ function rankedShades(pix, region, steps, stops, from = 0) {
   return (c) => (rankOf.has(c) ? shades[stepOf(c)] : null);
 }
 
-function buildLut(pix, timeId) {
+export function buildLut(pix, timeId) {
   const t = TIMES[timeId], n = pix.PALETTE.length, horizon = hex(t.horizon);
   // Cloud shadows use the lighter part of the ramp so bellies stay soft.
   const cloud = rankedShades(pix, CLOUD, CLOUD_STEPS, t.cloud, 0.4);

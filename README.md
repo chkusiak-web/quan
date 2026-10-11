@@ -69,4 +69,5 @@ python3 tools/tower-sprite.py bake             # Chaoran Tower + reflection -> p
 python3 tools/paint-windows.py                 # house windows -> public/reference/windows.png
 python3 tools/pixmap-to-js.py public/reference/baotu-512x320.png src/pixmap/baotu.js
 node tools/export-pixmap-layers.js out/pixmap   # one PNG per layer per time of day
+node tools/preview-anim.js out/anim midday 40 2  # animation frames, for previews
 ```
