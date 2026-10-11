@@ -154,7 +154,7 @@ function glowMap(pix, t) {
   }
   // The floodlit tower glows as a whole: a wide, soft aura around its
   // silhouette, strongest close in.
-  const R = 9;
+  const R = 6;
   for (let p = 0; p < PIXELS.length; p++) {
     if (LAYER[p] !== tower) continue;
     const x = p % W, y = (p / W) | 0;
@@ -164,7 +164,7 @@ function glowMap(pix, t) {
       const d = Math.hypot(dx, dy);
       if (d > R) continue;
       const q = qy * W + qx;
-      a[q] = Math.max(a[q], 0.42 * k * (1 - d / (R + 1)) ** 2);
+      a[q] = Math.max(a[q], 0.22 * k * (1 - d / (R + 1)) ** 2);
     }
   }
   for (let p = 0; p < a.length; p++) a[p] = Math.min(a[p], 0.85);
