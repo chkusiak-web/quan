@@ -42,7 +42,11 @@ Home page picks the palette from the clock. Preview another with `?time=night`.
 ## Pixmap
 
 `pixmap.html` shows the reference as a 512 × 320, 72-colour pixel map stored
-in code (`src/pixmap/baotu.js`: a palette plus one index byte per pixel).
+in code (`src/pixmap/baotu.js`: a palette plus one byte per pixel holding
+its colour and region: land, sky or water). It uses the same time-of-day
+palettes as the home page (`?time=night` to preview): land is graded, sky
+and clouds take the time's ramps by brightness, water picks up the horizon
+tint, and night adds stars and a moon where the sky shows.
 
 ```
 python3 tools/pixelate.py 512 72     # reference -> public/reference/baotu-512x320.png

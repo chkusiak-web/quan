@@ -59,10 +59,10 @@ export function timeForHour(hour) {
   return 'midday';
 }
 
-const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
-const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+export const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+export const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 
-function grade(rgb, t) {
+export function grade(rgb, t) {
   const lum = 0.3 * rgb[0] + 0.59 * rgb[1] + 0.11 * rgb[2];
   return rgb.map((c, i) => (lum + (c - lum) * t.sat) * t.mul[i] + t.lift[i]);
 }
