@@ -158,6 +158,23 @@ for x in range(w):
         if region[p] == SKY and hsv[idx[p]][1] < 0.42:
             region[p] = CLOUD
 
+# Chaoran Tower is drawn separately (tools/paint-tower.py) and laid over the
+# map here, in the map's own colours.
+import os
+tower_px = set()
+overlay = os.path.join(os.path.dirname(src), 'chaoran-tower.png')
+if os.path.exists(overlay):
+    by_hex = {c: i for i, c in enumerate(colors)}
+    ov = Image.open(overlay).convert('RGBA')
+    for y in range(h):
+        for x in range(w):
+            r_, g_, b_, a_ = ov.getpixel((x, y))
+            if a_:
+                p = y * w + x
+                idx[p] = by_hex['#%02x%02x%02x' % (r_, g_, b_)]
+                region[p] = LAND
+                tower_px.add(p)
+
 # ---------------------------------------------------------------- layers
 # Every pixel belongs to exactly one layer, so stacking them back to front
 # rebuilds the picture. Animated sprites are drawn between layers.
@@ -231,7 +248,6 @@ for y in range(80, 130):
         if p not in tree and region[p] != LAND:
             region[p] = SKY if y < ridge[x] else MOUNTAIN
 
-TOWER = [(380, 98), (412, 98), (414, 142), (378, 142)]
 ISLAND = [(300, 128), (512, 128), (512, 163), (300, 163)]
 FAR_SHORE = [(90, 138), (300, 138), (300, 160), (90, 160)]
 LAKE = [(215, 145), (512, 145), (512, 252), (470, 246), (430, 226), (392, 216), (332, 200), (272, 166), (215, 160)]
@@ -244,14 +260,14 @@ for p in range(w * h):
     r = region[p]
     if p in tree:
         name = 'tree'
+    elif p in tower_px:
+        name = 'tower'
     elif r == SKY:
         name = 'sky'
     elif r == CLOUD:
         name = 'clouds'
     elif r == MOUNTAIN:
         name = 'mountains'
-    elif inside(TOWER, x, y):
-        name = 'tower'
     elif r == LAND and (inside(ISLAND, x, y) or inside(FAR_SHORE, x, y)):
         name = 'island'
     elif inside(POOL, x, y):
