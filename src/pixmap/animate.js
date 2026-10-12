@@ -211,10 +211,10 @@ export function createScene(pix, timeId) {
       // A swooping path: a slow wave with one deeper dip.
       const base = 25 + hash(i, cycle, 34) * 60;
       const y = base + 14 * Math.sin(age * 0.035 + i) + 18 * Math.exp(-(((age - 70) / 25) ** 2));
-      // A burst of three full wingbeats (up, half, down, half), then a glide.
+      // A burst of six full wingbeats (up, half, down, half), then a glide.
       const bird = SWALLOW[i === 0 ? 'near' : 'far'];
-      const beat = (age + i * 9) % 36;
-      const frame = beat < 12 ? [0, 1, 2, 1][beat % 4] : 0;
+      const beat = (age + i * 9) % 48;
+      const frame = beat < 24 ? [0, 1, 2, 1][beat % 4] : 0;
       for (const [dx, dy, c] of bird.frames[frame]) put(out, x + (dir > 0 ? dx : bird.w - 1 - dx), y + dy - 8, c);
     }
   }
