@@ -18,7 +18,8 @@ export const FPS = 6;
 const STACKS = {
   back: ['sky', 'clouds', 'mountains', 'island', 'tower', 'lake'],
   mid: ['village', 'ground', 'pool'],
-  front: ['tree', 'glow'],
+  front: ['tree'],
+  glow: ['glow'],
 };
 
 const REGION = { land: 0, sky: 1, water: 2, cloud: 3, mountain: 4, light: 5 };
@@ -55,6 +56,7 @@ export function createScene(pix, timeId) {
   };
   const midIdx = covered(stacks.mid);
   const frontIdx = covered(stacks.front);
+  const glowIdx = covered(stacks.glow);
 
   // A palette colour in a region, as RGB for this time of day.
   const nearestIndex = (hexc) => {
@@ -273,6 +275,90 @@ export function createScene(pix, timeId) {
     }
   }
 
+  // ---- willows: strands sway a pixel in a slow wave
+  const WILLOWS = [[280, 175, 332, 250], [330, 205, 362, 245], [368, 220, 448, 292]];
+  const inVillage = layerIs('village');
+  const willowPx = [];
+  for (const [x0, y0, x1, y1] of WILLOWS) {
+    for (let y = y0 + 4; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const p = y * W + x, o = p * 4, b = stacks.mid;
+      if (!inVillage(p) || !b[o + 3]) continue;
+      const [r, g, bl] = [b[o], b[o + 1], b[o + 2]];
+      if (g > r && g > bl + 15) willowPx.push(p);               // leafy green
+    }
+  }
+  const isWillow = new Uint8Array(W * H);
+  for (const p of willowPx) isWillow[p] = 1;
+  function willowSway(out, f) {
+    const src = stacks.mid;
+    for (const p of willowPx) {
+      const x = p % W, y = (p / W) | 0;
+      const shift = Math.round(Math.sin(f * 0.06 - x * 0.05 + y * 0.02));
+      if (!shift) continue;
+      const q = p - shift;
+      if (!isWillow[q]) continue;                              // stay inside the crown
+      const o = p * 4, oq = q * 4;
+      out[o] = src[oq]; out[o + 1] = src[oq + 1]; out[o + 2] = src[oq + 2];
+    }
+  }
+
+  // ---- stream: flecks of foam riding the current down from the bridge
+  const STREAM = [330, 246, 420, 320];
+  const streamRows = {};
+  for (let y = STREAM[1]; y < STREAM[3]; y++) {
+    const xs = [];
+    for (let x = STREAM[0]; x < STREAM[2]; x++) {
+      const p = y * W + x, o = p * 4, b = stacks.mid;
+      if (isWater(p) && !inLake(p) && b[o + 2] > b[o] + 40) xs.push(x);
+    }
+    if (xs.length > 2) streamRows[y] = xs;
+  }
+  function streamFoam(out, f) {
+    const COUNT = 14, SPEED = 0.45;
+    const rows = Object.keys(streamRows).map(Number);
+    if (!rows.length) return;
+    const top = rows[0], len = rows[rows.length - 1] - top;
+    for (let i = 0; i < COUNT; i++) {
+      const y = top + ((f * SPEED + i * (len / COUNT)) % len);
+      const row = streamRows[Math.round(y)];
+      if (!row) continue;
+      const lane = hash(i, Math.floor((f * SPEED + i * (len / COUNT)) / len), 51);
+      const x = row[Math.floor(lane * row.length)];
+      put(out, x, y, C.foam, 0.85);
+      if (lane > 0.5) put(out, x + 1, y, C.spray, 0.6);
+    }
+  }
+
+  // ---- night: fireflies drifting and blinking over the slope and bushes
+  const FIREFLY = [255, 226, 130];
+  function fireflies(out, f) {
+    if (!t.moon) return;
+    const COUNT = 12;
+    for (let i = 0; i < COUNT; i++) {
+      const hx = 150 + hash(i, 0, 61) * 300, hy = 200 + hash(i, 0, 62) * 100;
+      const x = hx + 10 * Math.sin(f * 0.013 + i) + 4 * Math.sin(f * 0.041 + i * 2);
+      const y = hy + 6 * Math.sin(f * 0.017 + i * 3);
+      const blink = (f + Math.floor(hash(i, 0, 63) * 40)) % 40;
+      const a = blink < 14 ? Math.sin((blink / 14) * Math.PI) : 0;   // glow up, fade out, rest
+      if (!a) continue;
+      put(out, x, y, FIREFLY, a);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) put(out, x + dx, y + dy, FIREFLY, a * 0.3);
+    }
+  }
+
+  // ---- evening and night: the lights flicker very gently
+  function glow(out, f) {
+    const b = stacks.glow;
+    for (let i = 0; i < glowIdx.length; i++) {
+      const p = glowIdx[i], o = p * 4;
+      const x = p % W, y = (p / W) | 0;
+      // Each patch of light breathes on its own, by a few percent.
+      const k = 0.88 + 0.12 * Math.sin(f * 0.15 + hash(x >> 3, y >> 3, 71) * 6.28);
+      const a = (b[o + 3] / 255) * k;
+      for (let c = 0; c < 3; c++) out[o + c] += (b[o + c] - out[o + c]) * a;
+    }
+  }
+
   // ---- lake: small rings spreading slowly here and there
   function lakeRipples(out, f) {
     const LIFE = 30, COUNT = 7;
@@ -335,8 +421,12 @@ export function createScene(pix, timeId) {
       lakeBirds(out, f);
       swallows(out, f);
       over(out, stacks.mid, midIdx);
+      willowSway(out, f);
+      streamFoam(out, f);
       fountains(out, f);
+      fireflies(out, f);
       over(out, stacks.front, frontIdx);
+      glow(out, f);
       petals(out, f);
       return out;
     },
