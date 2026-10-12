@@ -192,8 +192,8 @@ export function createScene(pix, timeId) {
 
   // ---- swallows: swooping across the sky, behind the tree
   // The two swallows painted in the reference (src/pixmap/swallows.js):
-  // a nearer, bigger one and a farther, smaller one, each with a glide pose
-  // and a flap. Colours go through the palette so they follow the time.
+  // a nearer, bigger one and a farther, smaller one, each with its glide
+  // pose and two flap frames (wing halfway, wing down). Colours go through the palette so they follow the time.
   const SWALLOW = Object.fromEntries(Object.entries(SWALLOWS).map(([k, v]) => [k, {
     w: v.w,
     frames: v.frames.map((fr) => fr.map(([dx, dy, h]) => [dx, dy, colour(h, 'land')])),
@@ -211,10 +211,10 @@ export function createScene(pix, timeId) {
       // A swooping path: a slow wave with one deeper dip.
       const base = 25 + hash(i, cycle, 34) * 60;
       const y = base + 14 * Math.sin(age * 0.035 + i) + 18 * Math.exp(-(((age - 70) / 25) ** 2));
-      // A few wingbeats, then a long glide.
+      // A burst of three full wingbeats (up, half, down, half), then a glide.
       const bird = SWALLOW[i === 0 ? 'near' : 'far'];
-      const beat = age % 30;
-      const frame = beat < 8 && (beat >> 1) % 2 ? 1 : 0;
+      const beat = (age + i * 9) % 36;
+      const frame = beat < 12 ? [0, 1, 2, 1][beat % 4] : 0;
       for (const [dx, dy, c] of bird.frames[frame]) put(out, x + (dir > 0 ? dx : bird.w - 1 - dx), y + dy - 8, c);
     }
   }
