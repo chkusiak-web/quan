@@ -78,6 +78,9 @@ export function createScene(pix, timeId) {
     petal: colour('#f7c9d7', 'land'),
     petalLight: colour('#fbe3e9', 'land'),
     petalShade: colour('#ef94b5', 'land'),
+    bird: colour('#213b5c', 'land'),
+    birdDark: colour('#23242f', 'land'),
+    belly: colour('#ded3c4', 'land'),
   };
 
   const layerIs = (name) => { const k = LAYERS.indexOf(name); return (p) => LAYER[p] === k; };
@@ -185,6 +188,35 @@ export function createScene(pix, timeId) {
     }
   }
 
+  // ---- swallows: swooping across the sky, behind the tree
+  // Wing frames, seen from below: up, level, down. D = back, d = shade,
+  // w = pale belly. Flaps a few times, then glides.
+  const SWALLOW = [
+    ['D.......D', '.Dd...dD.', '..DdwdD..', '....d....', '...d.d...'],
+    ['.........', 'DDDdwdDDD', '...ddd...', '....d....', '...d.d...'],
+    ['.........', '...dwd...', '.DDd.dDD.', 'D...d...D', '...d.d...'],
+  ].map((rows) => rows.flatMap((row, dy) => [...row].flatMap((ch, dx) =>
+    ch === '.' ? [] : [[dx, dy, { D: 'bird', d: 'birdDark', w: 'belly' }[ch]]])));
+  function swallows(out, f) {
+    if (!t.animals) return;                            // roosting at night
+    const COUNT = 3, PERIOD = 320;
+    for (let i = 0; i < COUNT; i++) {
+      const offset = Math.floor(hash(i, 0, 31) * PERIOD);
+      const cycle = Math.floor((f + offset) / PERIOD), age = (f + offset) % PERIOD;
+      const speed = 2 + hash(i, cycle, 32) * 1.2;      // px per frame
+      const dir = hash(i, cycle, 33) < 0.6 ? 1 : -1;   // mostly with the breeze
+      const x = dir > 0 ? -12 + age * speed : W + 12 - age * speed;
+      if (x < -12 || x > W + 12) continue;             // between passes
+      // A swooping path: a slow wave with one deeper dip.
+      const base = 25 + hash(i, cycle, 34) * 60;
+      const y = base + 14 * Math.sin(age * 0.035 + i) + 18 * Math.exp(-(((age - 70) / 25) ** 2));
+      // Flap for a while, then glide with wings level.
+      const beat = age % 24;
+      const frame = beat < 12 ? [0, 1, 2, 1][Math.floor(beat / 2) % 4] : 1;
+      for (const [dx, dy, c] of SWALLOW[frame]) put(out, x + (dir > 0 ? dx : 8 - dx), y + dy, C[c]);
+    }
+  }
+
   // ---- lake: small rings spreading slowly here and there
   function lakeRipples(out, f) {
     const LIFE = 30, COUNT = 7;
@@ -244,6 +276,7 @@ export function createScene(pix, timeId) {
       out.set(stacks.back);
       lakeRipples(out, f);
       lakeGlints(out, f);
+      swallows(out, f);
       over(out, stacks.mid, midIdx);
       fountains(out, f);
       over(out, stacks.front, frontIdx);
