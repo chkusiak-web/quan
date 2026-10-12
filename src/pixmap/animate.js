@@ -240,15 +240,22 @@ export function createScene(pix, timeId) {
   };
   function lakeBirds(out, f) {
     if (!t.animals) return;                            // gone for the night
-    // The pair paddle slowly to and fro across their stretch of the lake.
+    // The pair swim right to left across their stretch of the lake, turn
+    // around and swim back, each at its own steady pace.
+    const LEFT = 392, RIGHT = 440;                      // staying clear of the egret
+    // Each keeps to its own lane, the hen a little nearer, so when they
+    // pass, one crosses in front of the other.
     ['duck', 'hen'].forEach((name, i) => {
       const d = WILD[name];
-      const phase = f * 0.008 + i * 0.6;
-      const x = d.x - 14 + 18 * Math.sin(phase);        // staying clear of the egret
-      const dir = Math.cos(phase) >= 0 ? 1 : -1;       // facing the way it swims
-      const bob = ((f + i * 3) >> 3) % 2;              // a gentle bob
-      sprite(out, d.pixels, x, d.y + bob, dir < 0, d.w);
-      wake(out, x + (dir > 0 ? 2 : d.w - 3), d.y + 6, dir, f);
+      const lane = [0, 4][i];
+      const span = RIGHT - LEFT - d.w;
+      const pace = [0.07, 0.045][i];                   // px per frame
+      const p = (f * pace + (d.x - LEFT)) % (2 * span);
+      const leftward = p < span;
+      const x = leftward ? LEFT + span - p : LEFT + (p - span);
+      const dir = leftward ? -1 : 1;
+      sprite(out, d.pixels, x, d.y + lane, dir < 0, d.w);
+      wake(out, x + (dir > 0 ? 2 : d.w - 3), d.y + lane + 6, dir, f);
     });
     // The egret stands in the shallows and now and then peers into the water.
     const e = WILD.egret;
