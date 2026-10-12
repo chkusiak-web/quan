@@ -63,11 +63,10 @@ hidden`). The runtime sizes and places the canvas; don't style its size.
    `window.QuanScene.mountScene`).
 4. Use `fit` for scaling; never apply fractional scales (no `object-fit`,
    no CSS transforms on the canvas).
-5. **Ask me** whether the scene should run **behind the 216 px sidebar**
-   (option A) or **only fill the area to its right** (option B). Show me
-   both crops: `assets/crops/A-behind-sidebar-1440x872.png` and
-   `assets/crops/B-right-of-sidebar-1440x872.png`, or screenshots from our
-   app.
+5. **Sidebar layout: option B (decided).** The scene fills only the area
+   to the right of the 216 px sidebar (`fit` = that area, `left: 216px`);
+   it does not run behind the sidebar. Reference:
+   `assets/crops/B-right-of-sidebar-1440x872.png`.
 6. Keep the default clock following (the app often stays open for hours).
    Add a dev-only way to force a block (e.g. `?time=night`) for testing.
 7. The ducks and egret on the lake (right of centre, below the tower) are

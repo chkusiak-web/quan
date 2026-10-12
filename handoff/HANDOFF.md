@@ -16,8 +16,8 @@ Source of truth: repo `chkusiak-web/quan`, branch `claude/trusting-volta-hfso85`
 |---|---|
 | `quan-scene.js` | **The drop-in runtime.** One ES module (~700 KB, no dependencies) containing the pixel map, palettes, renderer and all animation. |
 | `quan-scene.classic.js` | The same runtime as a classic script that sets `window.QuanScene`, as a fallback for setups that can't load ES modules. Not needed in the tested Electron setup. |
-| `example.html`, `example.js`, `example.css` | Minimal page with a 216 px sidebar that mounts the scene, CSP-clean (no inline script or style). Open it directly from disk; `?time=night` previews a block, `?mode=right` fills only the area right of the sidebar. |
-| `assets/crops/` | The two sidebar options (A: scene runs behind the sidebar; B: scene fills only the area to its right) at a 1440 × 872 window, Retina. |
+| `example.html`, `example.js`, `example.css` | Minimal page with a 216 px sidebar that mounts the scene, CSP-clean (no inline script or style). Open it directly from disk. It uses option B (scene right of the sidebar); `?time=night` previews a block, `?mode=behind` shows option A for comparison. |
+| `assets/crops/` | The two sidebar options (A: scene runs behind the sidebar; **B, chosen: scene fills only the area to its right**) at a 1440 × 872 window, Retina. |
 | `assets/composites/` | Still images of the full scene for each time of day, at 512 × 320 and 1536 × 960 (×3). |
 | `assets/layers/<time>/` | The 10 scene layers (+ `glow`) as transparent PNGs, per time of day, back to front. |
 | `assets/sprites/` | The animated pieces as PNGs: swallows (near/far × glide/half/down), duck, hen, egret, egret-dip, 4 petal frames. Daytime colours. |
@@ -40,8 +40,8 @@ and animation) itself.
 ```
 
 ```css
-#home-bg { position: fixed; top: 0; bottom: 0; right: 0; left: 0; overflow: hidden; }
-/* option B, scene only right of the sidebar: left: 216px; */
+/* option B (chosen): the scene fills only the area right of the 216 px sidebar */
+#home-bg { position: fixed; top: 0; bottom: 0; right: 0; left: 216px; overflow: hidden; }
 ```
 
 ```js
@@ -165,10 +165,10 @@ evening and night; the tower glows gold; everything breathes very gently.
 * **Aspect ratio 16:10.** On other window shapes the whole-number cover
   crops the edges evenly. The interesting parts are the tree (left), pool
   (bottom-left), tower (right of centre) and lake (right).
-* **The 216 px sidebar:** option A runs the scene behind the sidebar (the
-  tree trunk shows through a translucent sidebar); option B fills only the
-  area to its right (the trunk is cropped out and the canopy frames the
-  left edge). See `assets/crops/`.
+* **The 216 px sidebar: option B (chosen).** The scene fills only the area
+  to the right of the sidebar; the trunk is cropped out and the canopy
+  frames the left edge. (Option A, behind a translucent sidebar, was
+  considered and not chosen.) See `assets/crops/`.
 * **Free space for UI:** the sky at top centre/right and the lower-right
   corner (bushes) are the calmest areas. Petals and fireflies draw over
   everything, including anything you paint into the canvas, but not over

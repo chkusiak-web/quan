@@ -1,5 +1,6 @@
 html, body { margin: 0; height: 100%; background: #14151c; }
 #sidebar { position: fixed; top: 0; bottom: 0; left: 0; width: 216px; z-index: 1;
-  background: rgba(18, 20, 30, 0.55); backdrop-filter: blur(8px); }
-#home-bg { position: fixed; top: 0; bottom: 0; right: 0; left: 0; overflow: hidden; }
-body.right #home-bg { left: 216px; }      /* option B: only the area right of the sidebar */
+  background: #12141e; }
+body.behind #sidebar { background: rgba(18, 20, 30, 0.55); backdrop-filter: blur(8px); }
+#home-bg { position: fixed; top: 0; bottom: 0; right: 0; left: 216px; overflow: hidden; }   /* option B (chosen) */
+body.behind #home-bg { left: 0; }         /* option A: behind the sidebar, for comparison */
