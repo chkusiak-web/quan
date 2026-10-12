@@ -65,6 +65,7 @@ page (`?time=night` to preview):
 ```
 python3 tools/pixelate.py 512 72     # reference -> public/reference/baotu-512x320.png
 python3 tools/erase-sprites.py public/reference/baotu-512x320.png
+python3 tools/extract-swallows.py public/reference/baotu-512x320-original.png  # swallow sprites
 python3 tools/tower-sprite.py bake             # Chaoran Tower + reflection -> public/reference/chaoran-*.png
 python3 tools/paint-windows.py                 # house windows -> public/reference/windows.png
 python3 tools/pixmap-to-js.py public/reference/baotu-512x320.png src/pixmap/baotu.js

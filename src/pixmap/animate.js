@@ -9,6 +9,7 @@
 
 import { renderPixmap, buildLut } from './draw.js';
 import { TIMES } from '../palette/times.js';
+import { SWALLOWS } from './swallows.js';
 
 export const FPS = 6;
 
@@ -81,6 +82,7 @@ export function createScene(pix, timeId) {
     bird: colour('#213b5c', 'land'),
     birdDark: colour('#23242f', 'land'),
     belly: colour('#ded3c4', 'land'),
+    throat: colour('#996460', 'land'),
   };
 
   const layerIs = (name) => { const k = LAYERS.indexOf(name); return (p) => LAYER[p] === k; };
@@ -189,14 +191,13 @@ export function createScene(pix, timeId) {
   }
 
   // ---- swallows: swooping across the sky, behind the tree
-  // Wing frames, seen from below: up, level, down. D = back, d = shade,
-  // w = pale belly. Flaps a few times, then glides.
-  const SWALLOW = [
-    ['D.......D', '.Dd...dD.', '..DdwdD..', '....d....', '...d.d...'],
-    ['.........', 'DDDdwdDDD', '...ddd...', '....d....', '...d.d...'],
-    ['.........', '...dwd...', '.DDd.dDD.', 'D...d...D', '...d.d...'],
-  ].map((rows) => rows.flatMap((row, dy) => [...row].flatMap((ch, dx) =>
-    ch === '.' ? [] : [[dx, dy, { D: 'bird', d: 'birdDark', w: 'belly' }[ch]]])));
+  // The two swallows painted in the reference (src/pixmap/swallows.js):
+  // a nearer, bigger one and a farther, smaller one, each with a glide pose
+  // and a flap. Colours go through the palette so they follow the time.
+  const SWALLOW = Object.fromEntries(Object.entries(SWALLOWS).map(([k, v]) => [k, {
+    w: v.w,
+    frames: v.frames.map((fr) => fr.map(([dx, dy, h]) => [dx, dy, colour(h, 'land')])),
+  }]));
   function swallows(out, f) {
     if (!t.animals) return;                            // roosting at night
     const COUNT = 3, PERIOD = 320;
@@ -210,10 +211,11 @@ export function createScene(pix, timeId) {
       // A swooping path: a slow wave with one deeper dip.
       const base = 25 + hash(i, cycle, 34) * 60;
       const y = base + 14 * Math.sin(age * 0.035 + i) + 18 * Math.exp(-(((age - 70) / 25) ** 2));
-      // Flap for a while, then glide with wings level.
-      const beat = age % 24;
-      const frame = beat < 12 ? [0, 1, 2, 1][Math.floor(beat / 2) % 4] : 1;
-      for (const [dx, dy, c] of SWALLOW[frame]) put(out, x + (dir > 0 ? dx : 8 - dx), y + dy, C[c]);
+      // A few wingbeats, then a long glide.
+      const bird = SWALLOW[i === 0 ? 'near' : 'far'];
+      const beat = age % 30;
+      const frame = beat < 8 && (beat >> 1) % 2 ? 1 : 0;
+      for (const [dx, dy, c] of bird.frames[frame]) put(out, x + (dir > 0 ? dx : bird.w - 1 - dx), y + dy - 8, c);
     }
   }
 
