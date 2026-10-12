@@ -10,7 +10,7 @@
 import { renderPixmap, buildLut } from './draw.js';
 import { TIMES } from '../palette/times.js';
 
-export const FPS = 10;
+export const FPS = 6;
 
 // Layer stacks, back to front. Sprites go in the slots between them.
 const STACKS = {
@@ -94,7 +94,19 @@ export function createScene(pix, timeId) {
 
   // Open lake water for glints: water pixels of the lake layer.
   const lakePx = [];
-  for (let p = 0; p < W * H; p++) if (inLake(p) && isWater(p) && ((p / W) | 0) > 165) lakePx.push(p);
+  // Only open water: well clear of the shore, bridge and willows.
+  const open = (p) => {
+    const x = p % W, y = (p / W) | 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -4; dx <= 6; dx++) {
+      const q = (y + dy) * W + x + dx;
+      if (!inLake(q) || !isWater(q)) return false;
+    }
+    return true;
+  };
+  for (let p = 0; p < W * H; p++) {
+    const y = (p / W) | 0;
+    if (y > 165 && y < 228 && p % W > 300 && open(p)) lakePx.push(p);
+  }
 
   const put = (out, x, y, c, a = 1) => {
     if (x < 0 || y < 0 || x >= W || y >= H) return;
@@ -111,19 +123,38 @@ export function createScene(pix, timeId) {
 
   // ---- lake: glints that twinkle in and out
   function lakeGlints(out, f) {
-    const LIFE = 14, COUNT = 14;
+    const LIFE = 20, COUNT = 26;
     for (let i = 0; i < COUNT; i++) {
       const cycle = Math.floor((f + i * 7) / LIFE), age = (f + i * 7) % LIFE;
       const p = lakePx[Math.floor(hash(i, cycle, 3) * lakePx.length)];
       if (p === undefined) continue;
       const x = p % W, y = (p / W) | 0;
       const len = 2 + Math.floor(hash(i, cycle, 4) * 3);
-      const mid = age > 3 && age < LIFE - 4;
+      const mid = age > 5 && age < LIFE - 6;
       for (let k = 0; k < len; k++) {
         const q = y * W + x + k;
         if (!inLake(q) || !isWater(q)) continue;
         if (mid) put(out, x + k, y, k === 0 || k === len - 1 ? C.glintSoft : C.glint, 0.9 * (t.waterSky > 0.25 ? 0.6 : 1));
-        else if (age <= 3 || age >= LIFE - 4) put(out, x + k, y, C.glintSoft, 0.6);
+        else if (age <= 5 || age >= LIFE - 6) put(out, x + k, y, C.glintSoft, 0.6);
+      }
+    }
+  }
+
+  // ---- lake: small rings spreading slowly here and there
+  function lakeRipples(out, f) {
+    const LIFE = 30, COUNT = 7;
+    for (let i = 0; i < COUNT; i++) {
+      const cycle = Math.floor((f + i * 11) / LIFE), age = (f + i * 11) % LIFE;
+      const p = lakePx[Math.floor(hash(i, cycle, 9) * lakePx.length)];
+      if (p === undefined) continue;
+      const cx = p % W, cy = (p / W) | 0;
+      const rx = 1.5 + age * 0.22, ry = Math.max(1, rx * 0.35);
+      const fade = 1 - age / LIFE;
+      for (let a = 0; a < Math.PI * 2; a += 0.9 / rx) {
+        if (Math.sin(a * 3 + i) < -0.3) continue;
+        const x = Math.round(cx + Math.cos(a) * rx), y = Math.round(cy + Math.sin(a) * ry);
+        const q = y * W + x;
+        if (inLake(q) && isWater(q)) put(out, x, y, C.glint, 0.6 * fade);
       }
     }
   }
@@ -134,21 +165,22 @@ export function createScene(pix, timeId) {
       // Bands of light travel up each jet.
       for (const p of jetPx[ji]) {
         const x = p % W, y = (p / W) | 0;
-        const band = (y + f * 2 + ji * 3) % 6;
+        const band = (((y - f + ji * 3) % 6) + 6) % 6;   // light falls down the spray
         if (band === 0) put(out, x, y, C.foam);
-        else if (band === 3 && hash(x, y, f) < 0.5) put(out, x, y, C.spray, 0.7);
+        else if (band === 3 && hash(x, y, f >> 1) < 0.5) put(out, x, y, C.spray, 0.7);
       }
       // Spray flicking off the crown.
       for (let k = 0; k < 5; k++) {
-        const r = hash(ji, f, k);
-        const dx = Math.round((r - 0.5) * 8), dy = -1 - Math.floor(hash(k, f, ji) * 4);
+        const g = f >> 1;                                  // changes every other frame
+        const r = hash(ji, g, k);
+        const dx = Math.round((r - 0.5) * 8), dy = -1 - Math.floor(hash(k, g, ji) * 4);
         put(out, j.x + dx, j.top + dy + Math.abs(dx) / 2, r < 0.5 ? C.foam : C.spray, 0.85);
       }
       // Ripple rings spreading from the base.
-      const PERIOD = 18;
+      const PERIOD = 26;
       for (let ring = 0; ring < 2; ring++) {
         const age = (f + ji * 5 + ring * PERIOD / 2) % PERIOD;
-        const rx = 4 + age * 0.9, ry = rx * 0.32;
+        const rx = 4 + age * 0.6, ry = rx * 0.32;
         const fade = 1 - age / PERIOD;
         for (let a = 0; a < Math.PI * 2; a += 1 / rx) {
           if (Math.sin(a * rx * 0.8) < -0.1) continue;          // dashed
@@ -165,6 +197,7 @@ export function createScene(pix, timeId) {
     // Draw frame number f into out (a W * H * 4 RGBA buffer).
     frame(out, f) {
       out.set(stacks.back);
+      lakeRipples(out, f);
       lakeGlints(out, f);
       over(out, stacks.mid, midIdx);
       fountains(out, f);
