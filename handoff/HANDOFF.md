@@ -15,7 +15,9 @@ Source of truth: repo `chkusiak-web/quan`, branch `claude/trusting-volta-hfso85`
 | Path | What it is |
 |---|---|
 | `quan-scene.js` | **The drop-in runtime.** One ES module (~700 KB, no dependencies) containing the pixel map, palettes, renderer and all animation. |
-| `example.html` | Minimal page that mounts the scene full-window. Serve the folder and open it; `?time=night` previews a block. |
+| `quan-scene.classic.js` | The same runtime as a classic script that sets `window.QuanScene`, as a fallback for setups that can't load ES modules. Not needed in the tested Electron setup. |
+| `example.html`, `example.js`, `example.css` | Minimal page with a 216 px sidebar that mounts the scene, CSP-clean (no inline script or style). Open it directly from disk; `?time=night` previews a block, `?mode=right` fills only the area right of the sidebar. |
+| `assets/crops/` | The two sidebar options (A: scene runs behind the sidebar; B: scene fills only the area to its right) at a 1440 × 872 window, Retina. |
 | `assets/composites/` | Still images of the full scene for each time of day, at 512 × 320 and 1536 × 960 (×3). |
 | `assets/layers/<time>/` | The 10 scene layers (+ `glow`) as transparent PNGs, per time of day, back to front. |
 | `assets/sprites/` | The animated pieces as PNGs: swallows (near/far × glide/half/down), duck, hen, egret, egret-dip, 4 petal frames. Daytime colours. |
@@ -29,39 +31,63 @@ and animation) itself.
 
 ---
 
-## Using it
+## Using it (Electron, vanilla JS)
 
-```js
-import { mountScene } from './quan-scene.js';
-
-const canvas = document.querySelector('#home-bg');
-const scene = mountScene(canvas);                 // time chosen from the device clock
-// mountScene(canvas, { time: 'night' })          // force a block (testing)
-// mountScene(canvas, { animate: false })         // a still frame only
-scene.stop();                                     // when leaving the home screen
+```html
+<!-- in the home screen; script-src 'self' is enough -->
+<div id="home-bg"><canvas id="home-canvas"></canvas></div>
+<script type="module" src="home.js"></script>
 ```
 
 ```css
-#home-bg {
-  position: fixed; inset: 0; width: 100vw; height: 100vh;
-  object-fit: cover;                              /* fills the screen, crops the edges */
-  image-rendering: pixelated;                     /* crisp pixels when scaled up */
-}
+#home-bg { position: fixed; top: 0; bottom: 0; right: 0; left: 0; overflow: hidden; }
+/* option B, scene only right of the sidebar: left: 216px; */
 ```
+
+```js
+// home.js
+import { mountScene } from './quan-scene.js';
+const scene = mountScene(document.getElementById('home-canvas'), {
+  fit: document.getElementById('home-bg'),   // whole-number cover scaling inside this box
+});
+// leaving the home screen:
+scene.stop();
+```
+
+`mountScene` sizes and positions the canvas itself when given `fit`; don't
+set its width/height/object-fit in CSS.
 
 ### API (`quan-scene.js`)
 
 | Export | Meaning |
 |---|---|
-| `mountScene(canvas, { time?, animate? })` | Sizes the canvas to 512 × 320, draws, and starts the loop. Returns `{ time, stop() }`. |
-| `currentTime(date?)` | The time block for a `Date` (default now): `'morning' \| 'midday' \| 'afternoon' \| 'evening' \| 'night'`. |
-| `stillFrame(time?)` | A full still frame as RGBA bytes (`Uint8ClampedArray`, 512 × 320 × 4), e.g. for a texture or loading screen. |
+| `mountScene(canvas, { fit?, time?, animate? })` | Draws and animates the scene. `fit`: an element whose box the scene covers (it needs `overflow: hidden` and a positioned box). `time`: force a block for testing (turns off clock following). `animate: false`: still frame. Returns `{ time, stop() }`; `time` is the block currently shown. |
+| `coverFit(w, h, dpr)` | The scaling maths used by `fit`, exposed for testing: `{ scale, width, height, left, top }`. |
+| `currentTime(date?)` | The block for a `Date` (default now): `'morning' \| 'midday' \| 'afternoon' \| 'evening' \| 'night'`. |
+| `stillFrame(time?)` | A still frame as RGBA bytes (`Uint8ClampedArray`, 512 × 320 × 4). |
 | `WIDTH`, `HEIGHT`, `FPS`, `TIME_ORDER`, `timeForHour(h)` | Constants and helpers. |
+
+### Scaling: whole numbers only
+
+With `fit`, the scene is scaled by the **smallest whole number of device
+pixels per scene pixel that covers the box**, never a fractional scale, and
+the overflow is cropped evenly on each side (offsets snapped to device
+pixels). It re-fits on resize (ResizeObserver) and when the window moves to
+a display with a different pixel ratio. Examples (Retina, 2 device px per
+CSS px):
+
+| Area (CSS px) | Scale | Scene size | Cropped |
+|---|---|---|---|
+| 1440 × 872, behind the sidebar | ×6 | 1536 × 960 | 48 px each side, 44 px top and bottom |
+| 1224 × 872, right of the sidebar | ×6 | 1536 × 960 | 156 px each side, 44 px top and bottom |
+| 1280 × 773 | ×5 | 1280 × 800 | 13.5 px top and bottom |
 
 ### Time blocks
 
-The block is chosen **once, when the scene mounts** (no blending between
-blocks; the home screen is only shown at open).
+The block follows the device clock. It is checked when the scene mounts,
+**again whenever the window regains focus or becomes visible, and once an
+hour**; if the block has changed, the scene switches to the new palette
+(no blending). Passing `time` turns this off.
 
 | Block | Hours | Look |
 |---|---|---|
@@ -74,32 +100,31 @@ blocks; the home screen is only shown at open).
 ### Behaviour
 
 * 6 fps, stepped like hand animation; positions snap to whole pixels.
-* Pauses while the tab/page is hidden.
+* Pauses while the window is hidden.
 * Respects `prefers-reduced-motion`: shows a still frame.
 * Cost: one 512 × 320 `putImageData` per frame plus a few thousand pixel
-  writes. Fine on phones.
+  writes; the browser does the whole-number upscale.
 
-### In a Phaser game
+### Verified in Electron
 
-Simplest: put the scene on a plain `<canvas>` **behind** the Phaser canvas
-(Phaser with `transparent: true`) on the home screen. Or draw it into a
-texture:
+Tested in Electron 33 (Chromium 130) with the page loaded by `loadFile`
+(file://), `contextIsolation` and `sandbox` on, and this CSP:
 
-```js
-import { stillFrame, WIDTH, HEIGHT } from './quan-scene.js';
-// Inside a Phaser.Scene:
-const tex = this.textures.createCanvas('home-bg', WIDTH, HEIGHT);
-tex.context.putImageData(new ImageData(stillFrame(), WIDTH, HEIGHT), 0, 0);
-tex.refresh();
-this.add.image(0, 0, 'home-bg').setOrigin(0).setScale(4);   // still version
-// For the animated version, call mountScene on tex.canvas and tex.refresh()
-// each frame (e.g. in update()).
+```
+default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:
 ```
 
-Remember to set `pixelArt: true` (or `roundPixels` + nearest filtering) in
-the Phaser config so it scales crisply.
+The ES module loads and runs; the scene renders at a device pixel ratio of
+2 with whole-number scaling in both sidebar layouts; and the clock re-check
+switched evening to night after a focus event. The runtime uses no `eval`,
+no inline scripts or styles, no network, no workers. It sets the canvas's
+size and position through `element.style`, which a `style-src 'self'` CSP
+allows.
 
----
+If the real app differs (an older Electron, a custom protocol, or a
+bundler that won't take the module), the smallest fix is
+`quan-scene.classic.js`: load it with a plain `<script src>` and use
+`window.QuanScene.mountScene(...)`.
 
 ## What the scene contains
 
@@ -137,17 +162,17 @@ evening and night; the tower glows gold; everything breathes very gently.
 
 ## Layout notes for the app
 
-* **Aspect ratio 16:10.** With `object-fit: cover` on other ratios it crops
-  the edges. On a tall phone screen it crops heavily left/right; the
-  interesting parts are the tree (left), pool (bottom-left), tower (right of
-  centre) and lake (right). Consider `object-position` to keep the tower in
-  view, or design the home UI around the crop.
+* **Aspect ratio 16:10.** On other window shapes the whole-number cover
+  crops the edges evenly. The interesting parts are the tree (left), pool
+  (bottom-left), tower (right of centre) and lake (right).
+* **The 216 px sidebar:** option A runs the scene behind the sidebar (the
+  tree trunk shows through a translucent sidebar); option B fills only the
+  area to its right (the trunk is cropped out and the canopy frames the
+  left edge). See `assets/crops/`.
 * **Free space for UI:** the sky at top centre/right and the lower-right
   corner (bushes) are the calmest areas. Petals and fireflies draw over
   everything, including anything you paint into the canvas, but not over
   DOM UI on top of it.
-* **Scale:** 512 × 320 at ×3 = 1536 × 960, ×4 = 2048 × 1280. Whole-number
-  scales look best.
 * **Known caveat (accepted):** the ducks, egret and swallows are larger than
   true scale next to the houses. The plan is to cover the ducks and egret
   (on the lake, right of centre, just below the tower) with a UI panel.
