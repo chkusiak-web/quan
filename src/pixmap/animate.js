@@ -75,6 +75,9 @@ export function createScene(pix, timeId) {
     ring: colour('#b0d9fa', 'water'),
     glint: colour('#fcfcfc', 'water'),
     glintSoft: colour('#a3d2f8', 'water'),
+    petal: colour('#f7c9d7', 'land'),
+    petalLight: colour('#fbe3e9', 'land'),
+    petalShade: colour('#ef94b5', 'land'),
   };
 
   const layerIs = (name) => { const k = LAYERS.indexOf(name); return (p) => LAYER[p] === k; };
@@ -141,6 +144,44 @@ export function createScene(pix, timeId) {
     }
   }
 
+  // Blossom pixels in the canopy, where petals let go.
+  const inTree = layerIs('tree');
+  const blossom = [];
+  for (let p = 0; p < W * H; p++) {
+    const x = p % W, y = (p / W) | 0;
+    if (!inTree(p) || y > 150 || x > 250) continue;
+    const o = p * 4, b = stacks.front;
+    if (b[o] > 200 && b[o] > b[o + 2] + 20) blossom.push(p);   // pink
+  }
+
+  // ---- petals: drifting down from the canopy, tumbling and swaying
+  // Tumbling petal frames, about the size of the petals painted in the
+  // scene: L = light, P = pink, S = shade.
+  const PETAL_SHAPES = [
+    ['.LP.', 'LPPS', '.PS.'],      // flat, facing us
+    ['LP.', 'PPS', '.SS'],         // tilted
+    ['LP', 'PS', 'S.'],            // edge-on
+    ['.L.', 'LPP', 'PS.'],         // tilted the other way
+  ].map((rows) => rows.flatMap((row, dy) => [...row].flatMap((ch, dx) =>
+    ch === '.' ? [] : [[dx, dy, { L: 'petalLight', P: 'petal', S: 'petalShade' }[ch]]])));
+  function petals(out, f) {
+    const LIFE = 150, COUNT = t.moon ? 4 : 8;
+    for (let i = 0; i < COUNT; i++) {
+      const offset = Math.floor(hash(i, 0, 21) * LIFE);
+      const cycle = Math.floor((f + offset) / LIFE), age = (f + offset) % LIFE;
+      const from = blossom[Math.floor(hash(i, cycle, 22) * blossom.length)];
+      if (from === undefined) continue;
+      const vx = 0.25 + hash(i, cycle, 23) * 0.35;            // drifting right
+      const vy = 0.45 + hash(i, cycle, 24) * 0.35;            // falling slowly
+      const phase = hash(i, cycle, 25) * 6.28;
+      const x = from % W + vx * age + 3 * Math.sin(age * 0.09 + phase);
+      const y = ((from / W) | 0) + vy * age;
+      if (y >= H) continue;
+      const shape = PETAL_SHAPES[Math.floor(age / 4 + i) % PETAL_SHAPES.length];
+      for (const [dx, dy, c] of shape) put(out, x + dx, y + dy, C[c]);
+    }
+  }
+
   // ---- lake: small rings spreading slowly here and there
   function lakeRipples(out, f) {
     const LIFE = 30, COUNT = 7;
@@ -203,6 +244,7 @@ export function createScene(pix, timeId) {
       over(out, stacks.mid, midIdx);
       fountains(out, f);
       over(out, stacks.front, frontIdx);
+      petals(out, f);
       return out;
     },
   };
