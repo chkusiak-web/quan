@@ -158,25 +158,28 @@ export function createScene(pix, timeId) {
   // Tumbling petal frames, about the size of the petals painted in the
   // scene: L = light, P = pink, S = shade.
   const PETAL_SHAPES = [
-    ['.LP.', 'LPPS', '.PS.'],      // flat, facing us
-    ['LP.', 'PPS', '.SS'],         // tilted
-    ['LP', 'PS', 'S.'],            // edge-on
-    ['.L.', 'LPP', 'PS.'],         // tilted the other way
+    ['..LLP..', '.LLPPP.', 'LPPPPPS', '.PPPSS.', '..SS...'],   // flat, facing us
+    ['.LLP..', 'LLPPP.', 'LPPPS.', '.PPSSS', '..SSS.'],         // tilted
+    ['LLP', 'LPP', 'PPS', 'PSS', 'SS.'],                         // edge-on
+    ['..LL.', '.LPPS', 'LPPPS', 'PPSS.', '.SS..'],               // tilted the other way
   ].map((rows) => rows.flatMap((row, dy) => [...row].flatMap((ch, dx) =>
     ch === '.' ? [] : [[dx, dy, { L: 'petalLight', P: 'petal', S: 'petalShade' }[ch]]])));
   function petals(out, f) {
-    const LIFE = 150, COUNT = t.moon ? 4 : 8;
+    const LIFE = 400, COUNT = t.moon ? 6 : 12;
     for (let i = 0; i < COUNT; i++) {
       const offset = Math.floor(hash(i, 0, 21) * LIFE);
       const cycle = Math.floor((f + offset) / LIFE), age = (f + offset) % LIFE;
       const from = blossom[Math.floor(hash(i, cycle, 22) * blossom.length)];
       if (from === undefined) continue;
-      const vx = 0.25 + hash(i, cycle, 23) * 0.35;            // drifting right
-      const vy = 0.45 + hash(i, cycle, 24) * 0.35;            // falling slowly
+      // A breeze from the left carries them diagonally across the screen,
+      // all the way down; it rises and falls slowly.
+      const vx = 0.55 + hash(i, cycle, 23) * 0.35;
+      const vy = 0.55 + hash(i, cycle, 24) * 0.3;
       const phase = hash(i, cycle, 25) * 6.28;
-      const x = from % W + vx * age + 3 * Math.sin(age * 0.09 + phase);
+      const gust = 10 * Math.sin((f - age) * 0.01 + age * 0.012) - 10 * Math.sin((f - age) * 0.01);
+      const x = from % W + vx * age + gust + 4 * Math.sin(age * 0.07 + phase);
       const y = ((from / W) | 0) + vy * age;
-      if (y >= H) continue;
+      if (y >= H || x >= W) continue;
       const shape = PETAL_SHAPES[Math.floor(age / 4 + i) % PETAL_SHAPES.length];
       for (const [dx, dy, c] of shape) put(out, x + dx, y + dy, C[c]);
     }
