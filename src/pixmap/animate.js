@@ -275,28 +275,34 @@ export function createScene(pix, timeId) {
     }
   }
 
-  // ---- willows: strands sway a pixel in a slow wave
-  const WILLOWS = [[280, 175, 332, 250], [330, 205, 362, 245], [368, 220, 448, 292]];
+  // ---- willows: now and then the hanging strands shift a pixel
+  // Only pixels deep inside each crown move, and only in its lower part,
+  // so the sway never spills onto the grass or the houses beside them.
+  const WILLOWS = [[282, 176, 330, 238], [332, 206, 360, 238], [372, 222, 444, 278]];
   const inVillage = layerIs('village');
+  const green = (p) => {
+    const o = p * 4, b = stacks.mid;
+    return inVillage(p) && b[o + 3] && b[o + 1] > b[o] && b[o + 1] > b[o + 2] + 15;
+  };
   const willowPx = [];
+  const isWillow = new Uint8Array(W * H);
   for (const [x0, y0, x1, y1] of WILLOWS) {
-    for (let y = y0 + 4; y < y1; y++) for (let x = x0; x < x1; x++) {
-      const p = y * W + x, o = p * 4, b = stacks.mid;
-      if (!inVillage(p) || !b[o + 3]) continue;
-      const [r, g, bl] = [b[o], b[o + 1], b[o + 2]];
-      if (g > r && g > bl + 15) willowPx.push(p);               // leafy green
+    const from = y0 + Math.round((y1 - y0) * 0.4);             // the hanging part
+    for (let y = from; y < y1; y++) for (let x = x0 + 2; x < x1 - 2; x++) {
+      const p = y * W + x;
+      let inside = green(p);
+      for (let dy = -1; dy <= 1 && inside; dy++) for (let dx = -2; dx <= 2 && inside; dx++) inside = green(p + dy * W + dx);
+      if (inside) { willowPx.push(p); isWillow[p] = 1; }
     }
   }
-  const isWillow = new Uint8Array(W * H);
-  for (const p of willowPx) isWillow[p] = 1;
   function willowSway(out, f) {
     const src = stacks.mid;
     for (const p of willowPx) {
       const x = p % W, y = (p / W) | 0;
-      const shift = Math.round(Math.sin(f * 0.06 - x * 0.05 + y * 0.02));
-      if (!shift) continue;
-      const q = p - shift;
-      if (!isWillow[q]) continue;                              // stay inside the crown
+      const wave = Math.sin(f * 0.05 - x * 0.06 + y * 0.03);
+      if (wave < 0.8) continue;                                  // only at the crest
+      const q = p - 1;
+      if (!isWillow[q]) continue;
       const o = p * 4, oq = q * 4;
       out[o] = src[oq]; out[o + 1] = src[oq + 1]; out[o + 2] = src[oq + 2];
     }
@@ -329,15 +335,17 @@ export function createScene(pix, timeId) {
     }
   }
 
-  // ---- night: fireflies drifting and blinking over the slope and bushes
+  // ---- night: fireflies drifting and blinking all over the scene
   const FIREFLY = [255, 226, 130];
   function fireflies(out, f) {
     if (!t.moon) return;
-    const COUNT = 12;
+    const COUNT = 36;
     for (let i = 0; i < COUNT; i++) {
-      const hx = 150 + hash(i, 0, 61) * 300, hy = 200 + hash(i, 0, 62) * 100;
-      const x = hx + 10 * Math.sin(f * 0.013 + i) + 4 * Math.sin(f * 0.041 + i * 2);
-      const y = hy + 6 * Math.sin(f * 0.017 + i * 3);
+      // Each wanders a wide, slow loop somewhere on the screen.
+      const hx = hash(i, 0, 61) * W, hy = 40 + hash(i, 0, 62) * (H - 50);
+      const sp = 0.6 + hash(i, 0, 64) * 0.8;
+      const x = hx + 40 * Math.sin(f * 0.006 * sp + i) + 8 * Math.sin(f * 0.031 + i * 2);
+      const y = hy + 22 * Math.sin(f * 0.008 * sp + i * 3) + 4 * Math.sin(f * 0.027 + i);
       const blink = (f + Math.floor(hash(i, 0, 63) * 40)) % 40;
       const a = blink < 14 ? Math.sin((blink / 14) * Math.PI) : 0;   // glow up, fade out, rest
       if (!a) continue;
@@ -424,9 +432,9 @@ export function createScene(pix, timeId) {
       willowSway(out, f);
       streamFoam(out, f);
       fountains(out, f);
-      fireflies(out, f);
       over(out, stacks.front, frontIdx);
       glow(out, f);
+      fireflies(out, f);
       petals(out, f);
       return out;
     },

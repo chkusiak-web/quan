@@ -29,8 +29,8 @@ const NIGHT_LIGHT = {
   '#d9a441': '#ffe9a8', // gold, lit
   '#a8762c': '#e6a344', // gold, shaded
   // Chaoran Tower (tools/tower-sprite.py)
-  '#b4ab9b': '#ffd889', // wall panels and rails: warm light
-  '#c49a4e': '#ffe9a8', // gold
+  '#b4ab9b': '#f0a040', // wall panels and rails: the same warm gold as the front
+  '#c49a4e': '#f5b552', // gold trim
   '#76605f': '#c06a34', // wood
   '#56484c': '#7c3c24', // wood in shade
   '#4a4250': '#e89a3a', // open bays: lit interiors
