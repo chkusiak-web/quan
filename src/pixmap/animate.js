@@ -109,6 +109,7 @@ export function createScene(pix, timeId) {
   }
 
   const put = (out, x, y, c, a = 1) => {
+    x = Math.round(x); y = Math.round(y);         // a half-pixel y would shift half a row sideways
     if (x < 0 || y < 0 || x >= W || y >= H) return;
     const o = (y * W + x) * 4;
     for (let i = 0; i < 3; i++) out[o + i] += (c[i] - out[o + i]) * a;
