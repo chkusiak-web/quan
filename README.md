@@ -39,6 +39,10 @@ Home page picks the palette from the clock. Preview another with `?time=night`.
 - **Chaoran Tower** (`src/scene/tower.js`) is drawn as a ~60 px hero
   landmark: bottle finial, hip-and-gable roof, three balconied storeys.
 
+## Handoff
+
+The finished scene, packaged for the app, is in `handoff/`: see `handoff/HANDOFF.md`.
+
 ## Pixmap
 
 `pixmap.html` shows the reference as a 512 × 320, 72-colour pixel map stored

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quan scene example</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0d1320; overflow: hidden; }
+      /* Fill the window like background-size: cover, keeping pixels crisp. */
+      #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: cover; image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <script type="module">
+      import { mountScene, TIME_ORDER } from './quan-scene.js';
+      // ?time=night (or morning, midday, afternoon, evening) to preview a block.
+      const asked = new URLSearchParams(location.search).get('time');
+      mountScene(document.getElementById('scene'), TIME_ORDER.includes(asked) ? { time: asked } : {});
+    </script>
+  </body>
+</html>
