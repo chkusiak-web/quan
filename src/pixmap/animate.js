@@ -10,6 +10,7 @@
 import { renderPixmap, buildLut } from './draw.js';
 import { TIMES } from '../palette/times.js';
 import { SWALLOWS } from './swallows.js';
+import { WILDLIFE } from './wildlife.js';
 
 export const FPS = 6;
 
@@ -219,6 +220,47 @@ export function createScene(pix, timeId) {
     }
   }
 
+  // ---- ducks and egret, painted in the reference (src/pixmap/wildlife.js)
+  const WILD = Object.fromEntries(Object.entries(WILDLIFE).map(([k, v]) => [k, {
+    ...v,
+    pixels: v.pixels.map(([dx, dy, h]) => [dx, dy, colour(h, 'land')]),
+    dip: v.dip && v.dip.map(([dx, dy, h]) => [dx, dy, colour(h, 'land')]),
+  }]));
+  const sprite = (out, px, x, y, flip, w) => {
+    for (const [dx, dy, c] of px) put(out, x + (flip ? w - 1 - dx : dx), y + dy, c);
+  };
+  // A few dashed lines of water spreading behind a swimming duck.
+  const wake = (out, x, y, dir, f) => {
+    for (let k = 1; k <= 3; k++) {
+      const wx = x - dir * (2 + k * 2), spread = k;
+      if ((f + k) % 3 === 0) continue;
+      put(out, wx, y - spread, C.glintSoft, 0.6);
+      put(out, wx, y + spread, C.glintSoft, 0.6);
+    }
+  };
+  function lakeBirds(out, f) {
+    if (!t.animals) return;                            // gone for the night
+    // The pair paddle slowly to and fro across their stretch of the lake.
+    ['duck', 'hen'].forEach((name, i) => {
+      const d = WILD[name];
+      const phase = f * 0.008 + i * 0.6;
+      const x = d.x - 14 + 18 * Math.sin(phase);        // staying clear of the egret
+      const dir = Math.cos(phase) >= 0 ? 1 : -1;       // facing the way it swims
+      const bob = ((f + i * 3) >> 3) % 2;              // a gentle bob
+      sprite(out, d.pixels, x, d.y + bob, dir < 0, d.w);
+      wake(out, x + (dir > 0 ? 2 : d.w - 3), d.y + 6, dir, f);
+    });
+    // The egret stands in the shallows and now and then peers into the water.
+    const e = WILD.egret;
+    const cycle = f % 80;
+    const dipping = cycle >= 60 && cycle < 72;
+    sprite(out, dipping ? e.dip : e.pixels, e.x, e.y, false, e.w);
+    if (cycle >= 72) {                                  // a ring at its feet after
+      const r = 2 + (cycle - 72) * 0.6;
+      for (let a = 0; a < Math.PI * 2; a += 0.5) put(out, e.x + 11 + Math.cos(a) * r, e.y + 25 + Math.sin(a) * r * 0.35, C.glintSoft, 0.7);
+    }
+  }
+
   // ---- lake: small rings spreading slowly here and there
   function lakeRipples(out, f) {
     const LIFE = 30, COUNT = 7;
@@ -278,6 +320,7 @@ export function createScene(pix, timeId) {
       out.set(stacks.back);
       lakeRipples(out, f);
       lakeGlints(out, f);
+      lakeBirds(out, f);
       swallows(out, f);
       over(out, stacks.mid, midIdx);
       fountains(out, f);
