@@ -240,22 +240,27 @@ export function createScene(pix, timeId) {
   };
   function lakeBirds(out, f) {
     if (!t.animals) return;                            // gone for the night
-    // The pair swim right to left across their stretch of the lake, turn
-    // around and swim back, each at its own steady pace.
-    const LEFT = 392, RIGHT = 440;                      // staying clear of the egret
-    // Each keeps to its own lane, the hen a little nearer, so when they
-    // pass, one crosses in front of the other.
-    ['duck', 'hen'].forEach((name, i) => {
+    // The pair swim across the lake toward the egret and back, each on its
+    // own lane and at its own pace. At each end a duck pauses a moment and
+    // turns around, so it always swims head first.
+    const PATHS = {
+      duck: { from: 386, to: 462, y: 196, pace: 0.3, facesLeft: false },
+      hen: { from: 401, to: 452, y: 201, pace: 0.2, facesLeft: true },
+    };
+    const TURN = 8;                                    // frames spent turning
+    Object.entries(PATHS).forEach(([name, P]) => {
       const d = WILD[name];
-      const lane = [0, 4][i];
-      const span = RIGHT - LEFT - d.w;
-      const pace = [0.07, 0.045][i];                   // px per frame
-      const p = (f * pace + (d.x - LEFT)) % (2 * span);
-      const leftward = p < span;
-      const x = leftward ? LEFT + span - p : LEFT + (p - span);
-      const dir = leftward ? -1 : 1;
-      sprite(out, d.pixels, x, d.y + lane, dir < 0, d.w);
-      wake(out, x + (dir > 0 ? 2 : d.w - 3), d.y + lane + 6, dir, f);
+      const span = P.to - P.from - d.w;
+      const leg = span / P.pace;                       // frames to cross once
+      const k = f % (2 * (leg + TURN));
+      let x, dir;
+      if (k < leg) { x = P.from + span - k * P.pace; dir = -1; }                 // swimming left
+      else if (k < leg + TURN) { x = P.from; dir = k < leg + TURN / 2 ? -1 : 1; } // turning
+      else if (k < 2 * leg + TURN) { x = P.from + (k - leg - TURN) * P.pace; dir = 1; } // swimming right
+      else { x = P.from + span; dir = k < 2 * leg + 1.5 * TURN ? 1 : -1; }      // turning
+      const moving = (k < leg) || (k >= leg + TURN && k < 2 * leg + TURN);
+      sprite(out, d.pixels, x, P.y, (dir < 0) !== P.facesLeft, d.w);
+      if (moving) wake(out, dir > 0 ? x + 2 : x + d.w - 3, P.y + 6, dir, f);
     });
     // The egret stands in the shallows and now and then peers into the water.
     const e = WILD.egret;
